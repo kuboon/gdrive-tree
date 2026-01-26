@@ -5,5 +5,9 @@ node_modules
 # build output
 dist
 
+# Deno
+.deno/
+deno.lock
+
 # draft
 note.txt
