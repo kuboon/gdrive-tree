@@ -1,0 +1,24 @@
+{
+  "tasks": {
+    "bundle": "mkdir -p dist && deno bundle index.html --sourcemap=linked --outdir=dist",
+    "serve": "deno run --allow-net --allow-read=dist jsr:@std/http/file-server dist",
+    "dev": "npm run dev",
+    "build": "npm run build"
+  },
+  "imports": {
+    "solid-js": "npm:solid-js@^1.3.10",
+    "solid-app-router": "npm:solid-app-router@^0.3.1",
+    "lodash": "npm:lodash@^4.17.21",
+    "tabbable": "npm:tabbable@^5.3.1"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "solid-js"
+  },
+  "permissions": {
+    "default": {
+      "net": true,
+      "read": ["dist"]
+    }
+  }
+}
