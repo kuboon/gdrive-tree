@@ -8,6 +8,9 @@ const app = new Hono();
 app.use("/*", cors());
 
 // Store tokens in memory (in production, use a proper session store)
+// NOTE: In-memory storage means tokens will be lost on server restart.
+// For production, implement proper session persistence with encryption
+// (e.g., Redis, database with encrypted tokens, or secure session cookies)
 const tokenStore = new Map<string, any>();
 
 // API Routes
@@ -63,6 +66,11 @@ app.post("/api/drive/files/list", async (c) => {
   const body = await c.req.json();
   const { pageSize, fields, folderId, pageToken, includeItemsFromAllDrives, supportsAllDrives, q, spaces, orderBy } = body;
   
+  // Validate and sanitize folderId
+  if (folderId && !/^[a-zA-Z0-9_-]+$/.test(folderId) && folderId !== "root") {
+    return c.json({ error: "Invalid folderId format" }, 400);
+  }
+  
   // Build query parameters
   const params = new URLSearchParams();
   if (pageSize) params.append("pageSize", pageSize.toString());
@@ -73,9 +81,10 @@ app.post("/api/drive/files/list", async (c) => {
   if (spaces) params.append("spaces", spaces);
   if (orderBy) params.append("orderBy", orderBy);
   
-  // Build query
+  // Build query - folderId needs to be properly escaped for Google Drive API
   let query = "";
   if (folderId) {
+    // Google Drive file IDs are safe to use directly since we validated the format
     query = `'${folderId}' in parents and trashed = false`;
   } else if (q) {
     query = q;
