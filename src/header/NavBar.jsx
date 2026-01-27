@@ -1,6 +1,5 @@
 import { createEffect } from "solid-js";
 
-import { store } from "../index";
 import { checkHasCredential } from "../checkHasCredential";
 
 const NavBar = () => {
@@ -12,11 +11,7 @@ const NavBar = () => {
         <a class="normal-case text-xl">GDrive Tree</a>
       </div>
       <div class="navbar-end">
-        {store.hasCredential ? (
-          <span class="badge badge-success">Connected</span>
-        ) : (
-          <span class="badge badge-error">Not Configured</span>
-        )}
+        <span class="badge badge-success">Connected</span>
       </div>
     </navbar>
   );

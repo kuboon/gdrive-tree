@@ -1,19 +1,6 @@
 // API client for server-side Google Drive access
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
-// Check if server has valid credentials
-export async function checkHasCredential() {
-  const response = await fetch(`${API_BASE_URL}/api/auth/check`, {
-    method: "GET",
-  });
-
-  if (!response.ok) {
-    return { hasCredential: false };
-  }
-
-  return await response.json();
-}
-
 // List files from Google Drive
 export async function listDriveFiles(options) {
   const response = await fetch(`${API_BASE_URL}/api/drive/files/list`, {

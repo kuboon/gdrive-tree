@@ -1,6 +1,6 @@
-import { Hono } from "jsr:@hono/hono";
-import { serveStatic } from "jsr:@hono/hono/deno";
-import { cors } from "jsr:@hono/hono/cors";
+import { Hono } from "@hono/hono";
+import { serveStatic } from "@hono/hono/deno";
+import { cors } from "@hono/hono/cors";
 
 const app = new Hono();
 
@@ -11,20 +11,12 @@ app.use("/*", cors());
 const GOOGLE_DRIVE_TOKEN = Deno.env.get("GOOGLE_DRIVE_TOKEN");
 
 if (!GOOGLE_DRIVE_TOKEN) {
-  console.warn("Warning: GOOGLE_DRIVE_TOKEN not set in environment variables");
-  console.warn("The application will not be able to access Google Drive");
+  console.error("Error: GOOGLE_DRIVE_TOKEN not set in environment variables");
+  Deno.exit(1);
 }
 
 // API Routes
-app.get("/api/auth/check", async (c) => {
-  return c.json({ hasCredential: !!GOOGLE_DRIVE_TOKEN });
-});
-
 app.post("/api/drive/files/list", async (c) => {
-  if (!GOOGLE_DRIVE_TOKEN) {
-    return c.json({ error: "Server not configured with Google Drive token" }, 500);
-  }
-  
   const body = await c.req.json();
   const { pageSize, fields, folderId, pageToken, includeItemsFromAllDrives, supportsAllDrives, q, spaces, orderBy } = body;
   
