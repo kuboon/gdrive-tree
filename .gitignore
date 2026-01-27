@@ -2,5 +2,12 @@
 node_modules
 .env.local
 
+# build output
+dist
+
+# Deno
+.deno/
+deno.lock
+
 # draft
 note.txt
