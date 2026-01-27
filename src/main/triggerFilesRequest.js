@@ -3,6 +3,7 @@ import _ from "lodash";
 import { getRicherNodes, isFolder } from "./tree/node";
 import { tokenClient } from "../init";
 import { store, setStore } from "../index";
+import { listDriveFiles } from "../api/driveClient";
 
 import { rootId } from "./../globalConstant";
 
@@ -32,21 +33,14 @@ function buildFilesListArg(args) {
     if (!authorisedKeys.includes(key)) {
       continue;
     }
-    if (key === "folderId") {
-      const folderId = args[key];
-      if (folderId) {
-        result.q = "'" + folderId + "' in parents and trashed = false";
-      }
-    } else {
-      result[key] = args[key];
-    }
+    result[key] = args[key];
   }
 
   return result;
 }
 
 function gFilesList(listOptions) {
-  return gapi.client.drive.files.list(buildFilesListArg(listOptions));
+  return listDriveFiles(buildFilesListArg(listOptions));
 }
 
 async function loopRequest(listOptions) {
@@ -66,12 +60,12 @@ async function loopRequest(listOptions) {
         pageToken: nextPageToken,
       });
 
-      nextPageToken = response.result.nextPageToken;
-      if (response.result.files.length <= 0) {
+      nextPageToken = response.nextPageToken;
+      if (!response.files || response.files.length <= 0) {
         nextPageToken = null;
         break;
       }
-      for (const file of response.result.files) {
+      for (const file of response.files) {
         result.push(file);
       }
     } while (nextPageToken);
@@ -109,33 +103,19 @@ async function loopRequest(listOptions) {
       const result = await grabFiles(listOptions);
       resolve(result);
     } catch (err) {
-      console.info("First call to google API failed.");
+      console.info("First call to server API failed.");
       console.info(err);
-      if (gapi.client.getToken() === null) {
-        console.info("Ask consentment");
-        getToken("consent")
-          .then(async (resp) => {
-            const result = await grabFiles(listOptions);
-            resolve(result);
-          })
-          .catch((err) => {
-            console.error("Cannot call google API.");
-            console.error(err);
-            reject(err);
-          });
-      } else {
-        console.info("Renew consentment");
-        getToken("consent")
-          .then(async (resp) => {
-            const result = await grabFiles(listOptions);
-            resolve(result);
-          })
-          .catch((err) => {
-            console.error("Cannot call google API.");
-            console.error(err);
-            reject(err);
-          });
-      }
+      console.info("Ask for consent");
+      getToken("consent")
+        .then(async (resp) => {
+          const result = await grabFiles(listOptions);
+          resolve(result);
+        })
+        .catch((err) => {
+          console.error("Cannot call server API.");
+          console.error(err);
+          reject(err);
+        });
     }
   });
 }

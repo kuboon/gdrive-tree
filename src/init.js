@@ -2,6 +2,7 @@
 // https://developers.google.com/identity/oauth2/web/guides/migration-to-gis#implicit_flow_examples
 
 import { setStore } from "./index";
+import { storeToken } from "./api/driveClient";
 
 export let tokenClient;
 let gapiInited;
@@ -40,7 +41,17 @@ function gisInit() {
     client_id: import.meta.env.VITE_CLIENT_ID,
     scope: SCOPES,
     prompt: "consent",
-    callback: "",
+    callback: async (response) => {
+      if (response.access_token) {
+        // Store token on server
+        try {
+          await storeToken(response.access_token);
+          console.info("Token stored on server");
+        } catch (err) {
+          console.error("Failed to store token on server", err);
+        }
+      }
+    },
     ux_mode: "popup",
   });
 

@@ -2,6 +2,7 @@ import { createSignal, createEffect } from "solid-js";
 
 import { store, setStore } from "../index";
 import { checkHasCredential } from "../checkHasCredential";
+import { revokeToken } from "../api/driveClient";
 
 const NavBar = () => {
   let [buttonStyle, setButtonStyle] = createSignal("btn-disabled");
@@ -16,10 +17,15 @@ const NavBar = () => {
     }
   });
 
-  function handleClick() {
-    google.accounts.oauth2.revoke(gapi.client.getToken().access_token, () =>
-      setStore("hasCredential", () => false)
-    );
+  async function handleClick() {
+    try {
+      await revokeToken();
+      setStore("hasCredential", () => false);
+      // Clear the session storage
+      sessionStorage.removeItem("gdrive_session_id");
+    } catch (err) {
+      console.error("Failed to revoke token", err);
+    }
   }
 
   return (
