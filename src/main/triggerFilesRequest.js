@@ -81,13 +81,23 @@ async function loopRequest(listOptions) {
   function getToken(promptStr) {
     return new Promise((resolve, reject) => {
       try {
+        // Save the original callback
+        const originalCallback = tokenClient.callback;
+        
         // Deal with the response for a new token
-        tokenClient.callback = (resp) => {
+        tokenClient.callback = async (resp) => {
+          // First call the original callback to store the token
+          if (originalCallback && typeof originalCallback === 'function') {
+            await originalCallback(resp);
+          }
+          
           if (resp.error !== undefined) {
             reject(resp);
+          } else {
+            resolve(resp);
           }
-          resolve(resp);
         };
+        
         // Ask for a new token
         tokenClient.requestAccessToken({
           prompt: promptStr,

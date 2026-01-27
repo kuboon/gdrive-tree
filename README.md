@@ -1,36 +1,98 @@
-This project is currently only compatible with Google Chrome because of the authentification GUI element.
+# Google Drive Tree Browser
 
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+This project is a Google Drive file browser with a tree view, built with SolidJS and Hono.
 
-## Getting Started
+## Architecture
 
-First, run the development server:
+The application uses a server-side architecture where:
+- **Frontend**: SolidJS application that displays the file tree
+- **Backend**: Hono server that proxies all Google Drive API calls
+- **Authentication**: OAuth2 flow handled in the browser, tokens stored on the server
+
+All Google Drive API access goes through the Hono server to centralize authentication and improve security.
+
+## Prerequisites
+
+- Node.js and npm (for building the frontend)
+- Deno (for running the server)
+- Google Cloud Console project with Drive API enabled
+- OAuth 2.0 Client ID
+
+## Setup
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Configure environment:**
+   Copy `.env.local.example` to `.env.local` and fill in your Google OAuth Client ID:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+   
+   Edit `.env.local`:
+   ```
+   VITE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+   ```
+
+3. **Build the frontend:**
+   ```bash
+   npm run build
+   ```
+
+4. **Run the server:**
+   ```bash
+   deno task server
+   ```
+   
+   The server will start on `http://localhost:8000`
+
+## Development
+
+For frontend development with hot reload:
 
 ```bash
+# Terminal 1: Build frontend in dev mode
 npm run dev
-# or
-yarn dev
+
+# Terminal 2: Run the server (in production, server serves built files)
+deno task server
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+During development, if running frontend dev server separately:
+- Frontend dev server: `http://localhost:3000` (or port from vite)
+- Backend API server: `http://localhost:8000`
+- Set `VITE_API_BASE_URL=http://localhost:8000` in `.env.local` to connect to backend
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+## Available Scripts
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+### Frontend (npm)
+- `npm run dev` - Start Vite dev server with hot reload
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+### Backend (deno)
+- `deno task server` - Run Hono server
+- `deno task serve` - Serve static files (legacy)
+
+## API Endpoints
+
+The Hono server provides these endpoints:
+
+- `POST /api/auth/token` - Store OAuth token
+- `POST /api/auth/revoke` - Revoke token  
+- `GET /api/auth/check` - Check if user has valid credentials
+- `POST /api/drive/files/list` - List files from Google Drive
+
+## Browser Compatibility
+
+This project is currently only compatible with Google Chrome because of the authentication GUI element.
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+To learn more about the technologies used:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+- [SolidJS Documentation](https://www.solidjs.com/docs/latest)
+- [Hono Documentation](https://hono.dev/)
+- [Google Drive API](https://developers.google.com/drive/api/v3/about-sdk)
