@@ -1,7 +1,6 @@
 import _ from "lodash";
 
 import { getRicherNodes, isFolder } from "./tree/node";
-import { tokenClient } from "../init";
 import { store, setStore } from "../index";
 import { listDriveFiles } from "../api/driveClient";
 
@@ -51,83 +50,24 @@ async function loopRequest(listOptions) {
    * @param {object} listOptions : necessary to build the request to google
    * @returns Array of files
    */
-  async function grabFiles(listOptions) {
-    const result = [];
-    let nextPageToken;
-    do {
-      const response = await gFilesList({
-        ...listOptions,
-        pageToken: nextPageToken,
-      });
-
-      nextPageToken = response.nextPageToken;
-      if (!response.files || response.files.length <= 0) {
-        nextPageToken = null;
-        break;
-      }
-      for (const file of response.files) {
-        result.push(file);
-      }
-    } while (nextPageToken);
-    return result;
-  }
-
-  /**
-   * Make a request for a new token
-   *
-   * @param {string} promptStr
-   * @returns A promise
-   */
-  function getToken(promptStr) {
-    return new Promise((resolve, reject) => {
-      try {
-        // Save the original callback
-        const originalCallback = tokenClient.callback;
-        
-        // Deal with the response for a new token
-        tokenClient.callback = async (resp) => {
-          // First call the original callback to store the token
-          if (originalCallback && typeof originalCallback === 'function') {
-            await originalCallback(resp);
-          }
-          
-          if (resp.error !== undefined) {
-            reject(resp);
-          } else {
-            resolve(resp);
-          }
-        };
-        
-        // Ask for a new token
-        tokenClient.requestAccessToken({
-          prompt: promptStr,
-        });
-      } catch (err) {
-        reject(err);
-      }
+  const result = [];
+  let nextPageToken;
+  do {
+    const response = await gFilesList({
+      ...listOptions,
+      pageToken: nextPageToken,
     });
-  }
 
-  return new Promise(async (resolve, reject) => {
-    try {
-      const result = await grabFiles(listOptions);
-      resolve(result);
-    } catch (err) {
-      console.info("First call to server API failed.");
-      console.info(err);
-      console.info("Ask for consent");
-      getToken("consent")
-        .then(async (resp) => {
-          const result = await grabFiles(listOptions);
-          resolve(result);
-        })
-        .catch((err) => {
-          console.error("Cannot call server API.");
-          console.error(err);
-          reject(err);
-        });
+    nextPageToken = response.nextPageToken;
+    if (!response.files || response.files.length <= 0) {
+      nextPageToken = null;
+      break;
     }
-  });
+    for (const file of response.files) {
+      result.push(file);
+    }
+  } while (nextPageToken);
+  return result;
 }
 
 function sortNodesDirectoryFirst(node0, node1) {

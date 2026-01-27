@@ -7,7 +7,7 @@ jsr:@hono/hono を使ってサーバサイドを作り、google drive へのア�
 
 ## Solution Overview
 
-Successfully migrated from a client-side architecture to a server-side architecture using Hono framework.
+Successfully migrated from a client-side architecture to a server-side architecture using Hono framework with server-side token management.
 
 ### Before (Client-Side Direct Access)
 ```
@@ -29,32 +29,33 @@ Successfully migrated from a client-side architecture to a server-side architect
 └──────────────────────────────┘
 ```
 
-### After (Server-Side Proxy)
+### After (Server-Side Proxy with Environment Token)
 ```
 ┌─────────┐
 │ Browser │
 │         │
-│ SolidJS │────────────────┐
-│   App   │                │
-└─────────┘                │
-     │                     │
-     │ OAuth2             │ HTTP API
-     │ (GIS)              │ (/api/*)
-     │                     │
-     ▼                     ▼
-┌──────────┐         ┌─────────────┐
-│  Google  │         │ Hono Server │
-│  OAuth2  │         │  (Deno)     │
-└──────────┘         └─────────────┘
-                            │
-                            │ Google Drive API
-                            │ (REST)
-                            │
-                            ▼
-                     ┌──────────────┐
-                     │ Google Drive │
-                     │     API      │
-                     └──────────────┘
+│ SolidJS │
+│   App   │
+└─────────┘
+     │
+     │ HTTP API
+     │ (/api/*)
+     │
+     ▼
+┌─────────────┐         ┌──────────────────┐
+│ Hono Server │         │ Environment Var  │
+│  (Deno)     │◄────────│ GOOGLE_DRIVE_    │
+│             │         │ TOKEN            │
+└─────────────┘         └──────────────────┘
+     │
+     │ Google Drive API
+     │ (REST with Bearer token)
+     │
+     ▼
+┌──────────────┐
+│ Google Drive │
+│     API      │
+└──────────────┘
 ```
 
 ## Key Changes
@@ -63,53 +64,60 @@ Successfully migrated from a client-side architecture to a server-side architect
 1. **Hono Server** (`server/main.ts`)
    - Runs on Deno runtime
    - Provides REST API endpoints
-   - Manages user sessions and tokens
+   - Reads token from environment variable `GOOGLE_DRIVE_TOKEN`
    - Proxies all Google Drive API calls
+   - No session management needed
 
-2. **API Client** (`src/api/driveClient.js`)
+2. **Simplified API Client** (`src/api/driveClient.js`)
    - Wrapper for server API calls
-   - Manages session IDs
-   - Handles authentication state
+   - No session IDs or token storage
+   - Simple fetch-based communication
 
 ### Modified Components
-1. **Authentication Flow** (`src/init.js`)
-   - OAuth2 still happens in browser (required by Google)
-   - Access tokens sent to server for storage
-   - Server manages token lifecycle
+1. **Authentication** (`src/init.js`)
+   - Removed all browser OAuth (GIS/GAPI)
+   - No external script loading
+   - Immediately sets app as ready
 
 2. **Drive Operations** (`src/main/triggerFilesRequest.js`)
-   - Replaced `gapi.client.drive.files.list()` calls
-   - Now calls `/api/drive/files/list` endpoint
-   - Server handles pagination and API communication
+   - Simplified to direct API calls
+   - Removed OAuth token request logic
+   - No retry/refresh mechanism needed
 
-3. **Credential Management** (`src/checkHasCredential.js`)
-   - Changed from `gapi.client.getToken()` to server check
-   - Uses `/api/auth/check` endpoint
+3. **UI** (`src/header/NavBar.jsx`)
+   - Removed "Revoke authorization" button
+   - Shows connection status badge instead
+   - Green badge when token configured, red when not
 
-4. **Token Revocation** (`src/header/NavBar.jsx`)
-   - Now calls `/api/auth/revoke`
-   - Clears session storage
+4. **Configuration** (`.env.local.example`)
+   - Changed from `VITE_CLIENT_ID` to `GOOGLE_DRIVE_TOKEN`
+   - Token is server-side only, never sent to browser
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/auth/token` | POST | Store OAuth token on server |
-| `/api/auth/revoke` | POST | Revoke and delete token |
-| `/api/auth/check` | GET | Check if user has valid token |
+| `/api/auth/check` | GET | Check if server has valid token |
 | `/api/drive/files/list` | POST | List files from Google Drive |
+
+**Removed endpoints:**
+- `POST /api/auth/token` - No longer needed (token from env)
+- `POST /api/auth/revoke` - No longer needed (server-side only)
 
 ## Security Improvements
 
-1. **Input Validation**: FolderId parameter validated against regex pattern
-2. **Session Management**: Session IDs used instead of storing tokens in browser
-3. **Centralized Token Storage**: Tokens stored server-side (in-memory for dev)
-4. **API Isolation**: Frontend has no direct access to Google Drive API
+1. **No Client-Side Tokens**: Access tokens never transmitted to or stored in browser
+2. **Environment-Based Auth**: Token configured server-side via environment variables
+3. **Simpler Architecture**: No session management, token storage, or OAuth flow complexity
+4. **Input Validation**: FolderId parameter validated against regex pattern
 
 ## Running the Application
 
 ### Development
 ```bash
+# Set token
+export GOOGLE_DRIVE_TOKEN=your-token
+
 # Terminal 1: Frontend dev server
 npm run dev
 
@@ -123,34 +131,34 @@ deno task server
 npm run build
 
 # Run server (serves built files + API)
+export GOOGLE_DRIVE_TOKEN=your-token
 deno task server
 ```
 
 ## Files Changed
-- ✅ 9 files modified
-- ✅ 3 files created
-- ✅ 367 lines added
-- ✅ 67 lines removed
+- ✅ Modified: `server/main.ts` - Simplified to use env token
+- ✅ Modified: `src/api/driveClient.js` - Removed session logic
+- ✅ Modified: `src/init.js` - Removed OAuth libraries
+- ✅ Modified: `src/main/triggerFilesRequest.js` - Removed token request logic
+- ✅ Modified: `src/header/NavBar.jsx` - Simplified to status display
+- ✅ Modified: `.env.local.example` - Changed to GOOGLE_DRIVE_TOKEN
+- ✅ Modified: `README.md` - Updated documentation
 
-## Testing Results
-- ✅ Frontend builds successfully
-- ✅ No TypeScript/JavaScript errors
-- ✅ CodeQL security scan: 0 issues
-- ✅ Code review completed and issues addressed
+## Token Management
 
-## Notes for Production Deployment
+**Getting a Token:**
+1. OAuth 2.0 Playground: https://developers.google.com/oauthplayground/
+2. gcloud CLI: `gcloud auth application-default print-access-token`
+3. Service Account: Generate from JSON key file
 
-⚠️ **Important**: The current implementation uses in-memory token storage, which will lose tokens on server restart. For production:
-
-1. Implement persistent session storage (Redis, database)
-2. Encrypt tokens before storage
-3. Add token refresh logic
-4. Implement proper CORS configuration
-5. Add rate limiting
-6. Use HTTPS only
-7. Set up proper environment variable management
+**Token Lifetime:**
+- Access tokens typically expire after 1 hour
+- For long-running deployments, consider:
+  - Using a service account
+  - Implementing token refresh logic
+  - Using a refresh token to obtain new access tokens
 
 ## Compatibility
-- Browser: Chrome (required for Google authentication UI)
+- Browser: All modern browsers (no browser-specific auth)
 - Runtime: Deno 1.x or higher
 - Node.js: 14.x or higher (for frontend build)

@@ -7,60 +7,22 @@ const app = new Hono();
 // Enable CORS for development
 app.use("/*", cors());
 
-// Store tokens in memory (in production, use a proper session store)
-// NOTE: In-memory storage means tokens will be lost on server restart.
-// For production, implement proper session persistence with encryption
-// (e.g., Redis, database with encrypted tokens, or secure session cookies)
-const tokenStore = new Map<string, any>();
+// Get Google Drive access token from environment variable
+const GOOGLE_DRIVE_TOKEN = Deno.env.get("GOOGLE_DRIVE_TOKEN");
+
+if (!GOOGLE_DRIVE_TOKEN) {
+  console.warn("Warning: GOOGLE_DRIVE_TOKEN not set in environment variables");
+  console.warn("The application will not be able to access Google Drive");
+}
 
 // API Routes
-app.post("/api/auth/token", async (c) => {
-  const body = await c.req.json();
-  const { accessToken, sessionId } = body;
-  
-  if (!accessToken || !sessionId) {
-    return c.json({ error: "Missing accessToken or sessionId" }, 400);
-  }
-  
-  tokenStore.set(sessionId, { accessToken, timestamp: Date.now() });
-  
-  return c.json({ success: true });
-});
-
-app.post("/api/auth/revoke", async (c) => {
-  const body = await c.req.json();
-  const { sessionId } = body;
-  
-  if (!sessionId) {
-    return c.json({ error: "Missing sessionId" }, 400);
-  }
-  
-  tokenStore.delete(sessionId);
-  
-  return c.json({ success: true });
-});
-
 app.get("/api/auth/check", async (c) => {
-  const sessionId = c.req.header("X-Session-Id");
-  
-  if (!sessionId) {
-    return c.json({ hasCredential: false });
-  }
-  
-  const token = tokenStore.get(sessionId);
-  return c.json({ hasCredential: !!token });
+  return c.json({ hasCredential: !!GOOGLE_DRIVE_TOKEN });
 });
 
 app.post("/api/drive/files/list", async (c) => {
-  const sessionId = c.req.header("X-Session-Id");
-  
-  if (!sessionId) {
-    return c.json({ error: "Missing session ID" }, 401);
-  }
-  
-  const tokenData = tokenStore.get(sessionId);
-  if (!tokenData) {
-    return c.json({ error: "Unauthorized" }, 401);
+  if (!GOOGLE_DRIVE_TOKEN) {
+    return c.json({ error: "Server not configured with Google Drive token" }, 500);
   }
   
   const body = await c.req.json();
@@ -98,7 +60,7 @@ app.post("/api/drive/files/list", async (c) => {
       `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
       {
         headers: {
-          Authorization: `Bearer ${tokenData.accessToken}`,
+          Authorization: `Bearer ${GOOGLE_DRIVE_TOKEN}`,
         },
       }
     );
