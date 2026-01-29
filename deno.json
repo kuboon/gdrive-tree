@@ -2,7 +2,7 @@
   "tasks": {
     "bundle": "npm run build",
     "serve": "deno run --allow-net --allow-read=dist jsr:@std/http/file-server dist",
-    "server": "deno run --allow-net --allow-read --allow-env server/main.ts",
+    "server": "deno run --allow-net --allow-read --allow-env --unstable-kv server/main.ts",
     "dev": "npm run dev",
     "build": "npm run build",
     "preview": "npm run preview"

@@ -1,6 +1,7 @@
 import { Hono } from "@hono/hono";
 import { serveStatic } from "@hono/hono/deno";
 import { cors } from "@hono/hono/cors";
+import { createCache, type DriveCache } from "./cache.ts";
 
 const app = new Hono();
 
@@ -15,7 +16,21 @@ if (!GOOGLE_DRIVE_TOKEN) {
   Deno.exit(1);
 }
 
+// Initialize cache
+const cache: DriveCache = await createCache();
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Helper function to generate cache key
+function getCacheKey(params: any): string {
+  return JSON.stringify(params);
+}
+
 // API Routes
+app.post("/api/drive/cache/purge", async (c) => {
+  await cache.clear();
+  return c.json({ success: true, message: "Cache purged successfully" });
+});
+
 app.post("/api/drive/files/list", async (c) => {
   const body = await c.req.json();
   const { pageSize, fields, folderId, pageToken, includeItemsFromAllDrives, supportsAllDrives, q, spaces, orderBy } = body;
@@ -47,6 +62,28 @@ app.post("/api/drive/files/list", async (c) => {
     params.append("q", query);
   }
   
+  // Generate cache key
+  const cacheKey = getCacheKey({
+    pageSize,
+    fields,
+    folderId,
+    pageToken,
+    includeItemsFromAllDrives,
+    supportsAllDrives,
+    q,
+    spaces,
+    orderBy,
+  });
+  
+  // Check cache first
+  const cachedData = await cache.get(cacheKey);
+  if (cachedData) {
+    console.log("Cache hit for key:", cacheKey.substring(0, 50) + "...");
+    return c.json(cachedData);
+  }
+  
+  console.log("Cache miss for key:", cacheKey.substring(0, 50) + "...");
+  
   try {
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
@@ -64,6 +101,10 @@ app.post("/api/drive/files/list", async (c) => {
     }
     
     const data = await response.json();
+    
+    // Cache the response
+    await cache.set(cacheKey, data, CACHE_TTL_MS);
+    
     return c.json(data);
   } catch (error) {
     console.error("Error calling Google Drive API:", error);
