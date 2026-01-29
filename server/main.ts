@@ -20,15 +20,27 @@ if (!GOOGLE_DRIVE_TOKEN) {
 const cache: DriveCache = await createCache();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-// Helper function to generate cache key
+// Helper function to generate cache key with deterministic serialization
 function getCacheKey(params: any): string {
-  return JSON.stringify(params);
+  // Sort keys to ensure consistent serialization
+  const sortedParams = Object.keys(params)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = params[key];
+      return acc;
+    }, {} as any);
+  return JSON.stringify(sortedParams);
 }
 
 // API Routes
 app.post("/api/drive/cache/purge", async (c) => {
-  await cache.clear();
-  return c.json({ success: true, message: "Cache purged successfully" });
+  try {
+    await cache.clear();
+    return c.json({ success: true, message: "Cache purged successfully" });
+  } catch (error) {
+    console.error("Failed to purge cache:", error);
+    return c.json({ success: false, error: "Failed to purge cache" }, 500);
+  }
 });
 
 app.post("/api/drive/files/list", async (c) => {
@@ -76,10 +88,15 @@ app.post("/api/drive/files/list", async (c) => {
   });
   
   // Check cache first
-  const cachedData = await cache.get(cacheKey);
-  if (cachedData) {
-    console.log("Cache hit for key:", cacheKey.substring(0, 50) + "...");
-    return c.json(cachedData);
+  let cachedData = null;
+  try {
+    cachedData = await cache.get(cacheKey);
+    if (cachedData) {
+      console.log("Cache hit for key:", cacheKey.substring(0, 50) + "...");
+      return c.json(cachedData);
+    }
+  } catch (error) {
+    console.error("Cache get failed, fetching fresh data:", error);
   }
   
   console.log("Cache miss for key:", cacheKey.substring(0, 50) + "...");
@@ -103,7 +120,12 @@ app.post("/api/drive/files/list", async (c) => {
     const data = await response.json();
     
     // Cache the response
-    await cache.set(cacheKey, data, CACHE_TTL_MS);
+    try {
+      await cache.set(cacheKey, data, CACHE_TTL_MS);
+    } catch (error) {
+      console.error("Failed to cache response:", error);
+      // Continue even if caching fails
+    }
     
     return c.json(data);
   } catch (error) {

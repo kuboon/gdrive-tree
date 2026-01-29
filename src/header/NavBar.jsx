@@ -3,16 +3,17 @@ import { createEffect, createSignal } from "solid-js";
 import { checkHasCredential } from "../checkHasCredential";
 import { purgeDriveCache } from "../api/driveClient";
 import { triggerFilesRequest } from "../main/triggerFilesRequest";
-import { store } from "../index";
 
 const NavBar = () => {
   createEffect(checkHasCredential);
   const [isRefreshing, setIsRefreshing] = createSignal(false);
+  const [error, setError] = createSignal("");
 
   async function handleRefresh() {
     if (isRefreshing()) return;
     
     setIsRefreshing(true);
+    setError("");
     try {
       // Purge the cache
       await purgeDriveCache();
@@ -28,8 +29,10 @@ const NavBar = () => {
       
       await triggerFilesRequest(initSwitch);
       console.log("Files reloaded successfully");
-    } catch (error) {
-      console.error("Failed to refresh:", error);
+    } catch (err) {
+      console.error("Failed to refresh:", err);
+      setError("Failed to refresh. Please try again.");
+      setTimeout(() => setError(""), 5000); // Clear error after 5 seconds
     } finally {
       setIsRefreshing(false);
     }
@@ -41,8 +44,11 @@ const NavBar = () => {
         <a class="normal-case text-xl">GDrive Tree</a>
       </div>
       <div class="navbar-end gap-2">
+        {error() && (
+          <span class="badge badge-error">{error()}</span>
+        )}
         <button
-          class={`btn btn-sm ${isRefreshing() ? "loading" : ""}`}
+          class={`btn btn-sm ${isRefreshing() ? "btn-disabled" : ""}`}
           onClick={handleRefresh}
           disabled={isRefreshing()}
         >

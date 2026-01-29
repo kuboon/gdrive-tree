@@ -9,6 +9,23 @@ export interface DriveCache {
 // In-memory cache implementation (for testing/development)
 export class MemoryCache implements DriveCache {
   private cache: Map<string, { value: any; expiresAt: number }> = new Map();
+  private cleanupInterval: number;
+
+  constructor() {
+    // Clean up expired entries every hour
+    this.cleanupInterval = setInterval(() => {
+      this.cleanup();
+    }, 60 * 60 * 1000);
+  }
+
+  private cleanup() {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now > entry.expiresAt) {
+        this.cache.delete(key);
+      }
+    }
+  }
 
   async get(key: string): Promise<any | null> {
     const entry = this.cache.get(key);
@@ -35,6 +52,11 @@ export class MemoryCache implements DriveCache {
 
   async clear(): Promise<void> {
     this.cache.clear();
+  }
+
+  // Cleanup method to be called when shutting down
+  destroy() {
+    clearInterval(this.cleanupInterval);
   }
 }
 
