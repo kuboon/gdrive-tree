@@ -23,13 +23,6 @@ async function getNodesFromDirectory(folderId, refresh = false) {
   });
 
   const files = result.files || [];
-  
-  // Store folder IDs for later use
-  files.forEach((file) => {
-    if (isFolder(file)) {
-      // Track folder IDs if needed
-    }
-  });
 
   nodesCache[folderId] = [...files];
 
@@ -38,8 +31,10 @@ async function getNodesFromDirectory(folderId, refresh = false) {
 
 export async function getSortedNodesFromDirectory(folderId, refresh = false) {
   const nodes = await getNodesFromDirectory(folderId, refresh);
+  // Create a copy before sorting to avoid mutating cached array
+  const nodesCopy = [...nodes];
   // Sort directories first, then alphabetically
-  nodes.sort((node0, node1) => {
+  nodesCopy.sort((node0, node1) => {
     if (isFolder(node0) && !isFolder(node1)) {
       return -1;
     } else if (!isFolder(node0) && isFolder(node1)) {
@@ -48,7 +43,7 @@ export async function getSortedNodesFromDirectory(folderId, refresh = false) {
       return node0.name.localeCompare(node1.name);
     }
   });
-  return nodes;
+  return nodesCopy;
 }
 
 async function initNodesFromRoot(refresh = false) {

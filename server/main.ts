@@ -35,7 +35,7 @@ app.get("/api/folders/:id", async (c) => {
   const refresh = c.req.query("refresh") === "true";
   
   // Validate and sanitize folderId
-  if (folderId && !/^[a-zA-Z0-9_-]+$/.test(folderId) && folderId !== "root") {
+  if (!/^[a-zA-Z0-9_-]+$/.test(folderId)) {
     return c.json({ error: "Invalid folderId format" }, 400);
   }
   
