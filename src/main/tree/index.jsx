@@ -2,15 +2,15 @@ import { createEffect, onMount, onCleanup } from "solid-js";
 
 import { tabbable } from "tabbable";
 
-import Node from "./Node";
-import { setNodeById, getNodeById, isFolder } from "./node";
+import Node from "./Node.jsx";
+import { setNodeById, getNodeById, isFolder } from "./node.js";
 import {
   findNearestLowerFocusableElement,
   findNearestUpperLiWithId,
   adjustBodyWidth,
   isElementVisible,
-} from "./htmlElement";
-import { customTransitionDuration } from "../../globalConstant";
+} from "./htmlElement.js";
+import { customTransitionDuration } from "../../globalConstant.js";
 
 const Tree = ({ id }) => {
   let treeContainerRef;
@@ -34,6 +34,10 @@ const Tree = ({ id }) => {
     return node().height;
   };
 
+  function mod(m, n) {
+    return ((m % n) + n) % n;
+  };
+
   function findFocusableElement(
     resTabbable,
     indexTabbableElement,
@@ -41,7 +45,7 @@ const Tree = ({ id }) => {
     cycle
   ) {
     const indexNextTabbableElement = cycle
-      ? (indexTabbableElement + increment).mod(resTabbable.length)
+      ? mod(indexTabbableElement + increment, resTabbable.length)
       : Math.max(
           0,
           Math.min(indexTabbableElement + increment, resTabbable.length - 1)
@@ -197,7 +201,7 @@ const Tree = ({ id }) => {
           });
         }
       } else {
-        window.open(activeNode.webViewLink, "_blank").focus();
+        globalThis.open(activeNode.webViewLink, "_blank").focus();
       }
     }
 

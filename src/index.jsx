@@ -3,10 +3,10 @@ import { createStore } from "solid-js/store";
 import { Router } from "solid-app-router";
 
 import "./index.css";
-import "./init";
-import App from "./App";
-import { getRicherNode } from "./main/tree/node";
-import { rootId } from "./globalConstant";
+import "./init.js";
+import App from "./App.jsx";
+import { getRicherNode } from "./main/tree/node.js";
+import { rootId } from "./globalConstant.js";
 
 const defaultRootNode = (() => {
   const res = {

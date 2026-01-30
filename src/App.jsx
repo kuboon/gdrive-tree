@@ -1,5 +1,5 @@
-import Header from "./header";
-import Main from "./main";
+import Header from "./header/index.jsx";
+import Main from "./main/index.jsx";
 import { useNavigate, useLocation } from "solid-app-router";
 
 const App = () => {

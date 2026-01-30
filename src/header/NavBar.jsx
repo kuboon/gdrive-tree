@@ -1,7 +1,7 @@
 import { createEffect, createSignal } from "solid-js";
 
-import { checkHasCredential } from "../checkHasCredential";
-import { triggerFilesRequest } from "../main/triggerFilesRequest";
+import { checkHasCredential } from "../checkHasCredential.js";
+import { triggerFilesRequest } from "../main/triggerFilesRequest.js";
 
 const NavBar = () => {
   createEffect(checkHasCredential);
@@ -16,7 +16,7 @@ const NavBar = () => {
     try {
       // Reload the files with refresh=true
       // Determine which tab is active and reload accordingly
-      const currentPath = window.location.pathname;
+      const currentPath = globalThis.location.pathname;
       let initSwitch = "drive";
       if (currentPath.includes("/shared")) {
         initSwitch = "shared";
@@ -43,6 +43,7 @@ const NavBar = () => {
           <span class="badge badge-error">{error()}</span>
         )}
         <button
+          type="button"
           class={`btn btn-sm ${isRefreshing() ? "btn-disabled" : ""}`}
           onClick={handleRefresh}
           disabled={isRefreshing()}

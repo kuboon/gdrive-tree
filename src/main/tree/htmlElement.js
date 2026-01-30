@@ -81,14 +81,14 @@ export function isElementVisible(element) {
 
 export function adjustBodyWidth() {
   // Every node that the width has to be checked
-  let listElement = Array.from(
+  const listElement = Array.from(
     document.querySelectorAll("span.selectable")
   ).filter((elt) => isElementVisible(elt));
 
   const maxLineWidth = listElement
     .map((elt) => {
       const rect = elt.getBoundingClientRect();
-      const lineWidth = window.pageXOffset + rect.left + rect.width * 1.02;
+      const lineWidth = globalThis.pageXOffset + rect.left + rect.width * 1.02;
       return lineWidth;
     })
     .reduce((acc, currentVal) => {
@@ -97,7 +97,7 @@ export function adjustBodyWidth() {
 
   const body = document.body;
 
-  if (window.innerWidth < maxLineWidth) {
+  if (globalThis.innerWidth < maxLineWidth) {
     body.style.width = `${maxLineWidth}px`;
   } else {
     body.style.width = "";

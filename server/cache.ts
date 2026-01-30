@@ -1,14 +1,14 @@
 // Cache interface for Google Drive API responses
 export interface DriveCache {
-  get(key: string): Promise<any | null>;
-  set(key: string, value: any, ttlMs: number): Promise<void>;
+  get(key: string): Promise<unknown | null>;
+  set(key: string, value: unknown, ttlMs: number): Promise<void>;
   delete(key: string): Promise<void>;
   clear(): Promise<void>;
 }
 
 // In-memory cache implementation (for testing/development)
 export class MemoryCache implements DriveCache {
-  private cache: Map<string, { value: any; expiresAt: number }> = new Map();
+  private cache: Map<string, { value: unknown; expiresAt: number }> = new Map();
   private cleanupInterval: number;
 
   constructor() {
@@ -27,31 +27,34 @@ export class MemoryCache implements DriveCache {
     }
   }
 
-  async get(key: string): Promise<any | null> {
+  get(key: string): Promise<unknown | null> {
     const entry = this.cache.get(key);
-    if (!entry) return null;
+    if (!entry) return Promise.resolve(null);
     
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
-      return null;
+      return Promise.resolve(null);
     }
     
-    return entry.value;
+    return Promise.resolve(entry.value);
   }
 
-  async set(key: string, value: any, ttlMs: number): Promise<void> {
+  set(key: string, value: unknown, ttlMs: number): Promise<void> {
     this.cache.set(key, {
       value,
       expiresAt: Date.now() + ttlMs,
     });
+    return Promise.resolve();
   }
 
-  async delete(key: string): Promise<void> {
+  delete(key: string): Promise<void> {
     this.cache.delete(key);
+    return Promise.resolve();
   }
 
-  async clear(): Promise<void> {
+  clear(): Promise<void> {
     this.cache.clear();
+    return Promise.resolve();
   }
 
   // Cleanup method to be called when shutting down
@@ -68,12 +71,12 @@ export class DenoKVCache implements DriveCache {
     this.kv = kv;
   }
 
-  async get(key: string): Promise<any | null> {
+  async get(key: string): Promise<unknown | null> {
     const result = await this.kv.get(["drive_cache", key]);
     return result.value;
   }
 
-  async set(key: string, value: any, ttlMs: number): Promise<void> {
+  async set(key: string, value: unknown, ttlMs: number): Promise<void> {
     await this.kv.set(["drive_cache", key], value, {
       expireIn: ttlMs,
     });

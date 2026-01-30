@@ -1,6 +1,6 @@
-import { store, setStore } from "./index";
+import { store } from "./index.jsx";
 
-export async function checkHasCredential() {
+export function checkHasCredential() {
   // Since the server exits if GOOGLE_DRIVE_TOKEN is not set,
   // we can assume credentials are always available when the server is running
   

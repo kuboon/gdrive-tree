@@ -1,8 +1,8 @@
 import { createEffect } from "solid-js";
 
-import NavBar from "./NavBar";
-import { store } from "../index";
-import { hiddenClass } from "../globalConstant";
+import NavBar from "./NavBar.jsx";
+import { store } from "../index.jsx";
+import { hiddenClass } from "../globalConstant.js";
 
 // TODO: deal with credential revocation
 

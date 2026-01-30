@@ -88,7 +88,7 @@ app.get("/api/folders/:id", async (c) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Google Drive API error:", errorText);
-      return c.json({ error: "Failed to fetch files from Google Drive", details: errorText }, response.status);
+      return c.json({ error: "Failed to fetch files from Google Drive", details: errorText }, response);
     }
     
     const data = await response.json();

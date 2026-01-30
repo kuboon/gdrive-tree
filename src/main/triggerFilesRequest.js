@@ -1,10 +1,10 @@
 import _ from "lodash";
 
-import { getRicherNodes, isFolder } from "./tree/node";
-import { store, setStore } from "../index";
-import { listDriveFiles } from "../api/driveClient";
+import { getRicherNodes, isFolder } from "./tree/node.js";
+import { store, setStore } from "../index.jsx";
+import { listDriveFiles } from "../api/driveClient.js";
 
-import { rootId } from "./../globalConstant";
+import { rootId } from "./../globalConstant.js";
 
 /**
  * Maps a node id to an array of children nodes.
@@ -51,12 +51,12 @@ async function initNodesFromRoot(refresh = false) {
 }
 
 // Note: shared and every modes not yet updated for new API
-async function initSharedNodes(refresh = false) {
+function initSharedNodes(_refresh = false) {
   // For now, treat as empty - this would need a different API endpoint
   return [];
 }
 
-async function initEveryNodes(refresh = false) {
+function initEveryNodes(_refresh = false) {
   // For now, treat as empty - this would need a different API endpoint
   return [];
 }
@@ -80,7 +80,7 @@ export async function triggerFilesRequest(initSwitch, refresh = false) {
 
   setStore("nodes", (current) => ({ ...current, isLoading: true }));
 
-  let newNodes = await grabFiles(initSwitch, refresh);
+  const newNodes = await grabFiles(initSwitch, refresh);
 
   const richerNodes = getRicherNodes(newNodes, store.nodes.content[rootId].id);
 

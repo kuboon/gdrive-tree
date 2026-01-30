@@ -1,4 +1,4 @@
-import { findNearestLowerFocusableElement } from "./htmlElement";
+import { findNearestLowerFocusableElement } from "./htmlElement.js";
 
 const File = ({ node, mustAutofocus }) => {
   return (
@@ -13,7 +13,7 @@ const File = ({ node, mustAutofocus }) => {
         childFocusableElement.focus();
         // Handle only double click
         if (e.detail === 2) {
-          window.open(node.webViewLink, "_blank").focus();
+          globalThis.open(node.webViewLink, "_blank").focus();
         }
       }}
     >
@@ -22,7 +22,7 @@ const File = ({ node, mustAutofocus }) => {
         tabindex="0"
         autofocus={mustAutofocus}
         onClick={() => {
-          window.open(node.webViewLink, "_blank").focus();
+          globalThis.open(node.webViewLink, "_blank").focus();
         }}
       >
         <img src={node.iconLink} />

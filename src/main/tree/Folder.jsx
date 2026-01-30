@@ -1,23 +1,23 @@
 import { createSignal, createEffect, onMount, onCleanup } from "solid-js";
 
-import { getSortedNodesFromDirectory } from "../triggerFilesRequest";
-import Tree from "./index";
+import { getSortedNodesFromDirectory } from "../triggerFilesRequest.js";
+import Tree from "./index.jsx";
 import {
   setNodeById,
   getRicherNodes,
   getNodePathByNode,
   setNodesContent,
   getNodeById,
-} from "./node";
+} from "./node.js";
 import {
   findChildElementWithPredicat,
   findNearestLowerFocusableElement,
   findNearestUpperLiWithId,
   adjustBodyWidth,
-} from "./htmlElement";
+} from "./htmlElement.js";
 
-import SpinningWheel from "../../SpinningWheel";
-import { customTransitionDuration } from "../../globalConstant";
+import SpinningWheel from "../../SpinningWheel.jsx";
+import { customTransitionDuration } from "../../globalConstant.js";
 
 // TODO: use solidjs-icon librairy
 const ArrowIcon = ({ node, toggleExpanded }) => {
@@ -203,13 +203,13 @@ const Folder = ({ node, mustAutofocus }) => {
     }
   }
 
-  function handleFocus(e) {
+  function handleFocus(_e) {
     setTimeout(() => {
       adjustBodyWidth();
     }, customTransitionDuration);
   }
 
-  function handleBlur(e) {
+  function handleBlur(_e) {
     setTimeout(() => {
       adjustBodyWidth();
     }, customTransitionDuration);
@@ -286,12 +286,13 @@ const Folder = ({ node, mustAutofocus }) => {
                 const currentImage = event.currentTarget;
                 console.error("Second image load failed", currentImage.src);
                 currentImage.onerror = null;
-                currentImage.src = currentImage.src;
               };
 
               // Refresh the src attribute, which should make the
-              // browsers reload the iamge.
-              currentImage.src = currentImage.src;
+              // browsers reload the image.
+              const originalSrc = currentImage.src;
+              currentImage.src = "";
+              currentImage.src = originalSrc;
             }}
           />
           <span
