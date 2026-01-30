@@ -1,7 +1,6 @@
 import { createEffect, createSignal } from "solid-js";
 
 import { checkHasCredential } from "../checkHasCredential";
-import { purgeDriveCache } from "../api/driveClient";
 import { triggerFilesRequest } from "../main/triggerFilesRequest";
 
 const NavBar = () => {
@@ -15,11 +14,7 @@ const NavBar = () => {
     setIsRefreshing(true);
     setError("");
     try {
-      // Purge the cache
-      await purgeDriveCache();
-      console.log("Cache purged successfully");
-      
-      // Reload the files
+      // Reload the files with refresh=true
       // Determine which tab is active and reload accordingly
       const currentPath = window.location.pathname;
       let initSwitch = "drive";
@@ -27,8 +22,8 @@ const NavBar = () => {
         initSwitch = "shared";
       }
       
-      await triggerFilesRequest(initSwitch);
-      console.log("Files reloaded successfully");
+      await triggerFilesRequest(initSwitch, true); // Pass refresh=true
+      console.log("Files refreshed successfully");
     } catch (err) {
       console.error("Failed to refresh:", err);
       setError("Failed to refresh. Please try again.");

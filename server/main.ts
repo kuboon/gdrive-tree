@@ -8,11 +8,17 @@ const app = new Hono();
 // Enable CORS for development
 app.use("/*", cors());
 
-// Get Google Drive access token from environment variable
+// Get Google Drive access token and drive ID from environment variables
 const GOOGLE_DRIVE_TOKEN = Deno.env.get("GOOGLE_DRIVE_TOKEN");
+const GOOGLE_DRIVE_ID = Deno.env.get("GOOGLE_DRIVE_ID");
 
 if (!GOOGLE_DRIVE_TOKEN) {
   console.error("Error: GOOGLE_DRIVE_TOKEN not set in environment variables");
+  Deno.exit(1);
+}
+
+if (!GOOGLE_DRIVE_ID) {
+  console.error("Error: GOOGLE_DRIVE_ID not set in environment variables");
   Deno.exit(1);
 }
 
@@ -20,86 +26,54 @@ if (!GOOGLE_DRIVE_TOKEN) {
 const cache: DriveCache = await createCache();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-// Helper function to generate cache key with deterministic serialization
-function getCacheKey(params: any): string {
-  // Sort keys to ensure consistent serialization
-  const sortedParams = Object.keys(params)
-    .sort()
-    .reduce((acc, key) => {
-      acc[key] = params[key];
-      return acc;
-    }, {} as any);
-  return JSON.stringify(sortedParams);
-}
+// Fixed fields that the client needs
+const FIXED_FIELDS = "files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink,parents)";
 
 // API Routes
-app.post("/api/drive/cache/purge", async (c) => {
-  try {
-    await cache.clear();
-    return c.json({ success: true, message: "Cache purged successfully" });
-  } catch (error) {
-    console.error("Failed to purge cache:", error);
-    return c.json({ success: false, error: "Failed to purge cache" }, 500);
-  }
-});
-
-app.post("/api/drive/files/list", async (c) => {
-  const body = await c.req.json();
-  const { pageSize, fields, folderId, pageToken, includeItemsFromAllDrives, supportsAllDrives, q, spaces, orderBy } = body;
+app.get("/api/folders/:id", async (c) => {
+  const folderId = c.req.param("id");
+  const refresh = c.req.query("refresh") === "true";
   
   // Validate and sanitize folderId
   if (folderId && !/^[a-zA-Z0-9_-]+$/.test(folderId) && folderId !== "root") {
     return c.json({ error: "Invalid folderId format" }, 400);
   }
   
-  // Build query parameters
-  const params = new URLSearchParams();
-  if (pageSize) params.append("pageSize", pageSize.toString());
-  if (fields) params.append("fields", fields);
-  if (pageToken) params.append("pageToken", pageToken);
-  if (includeItemsFromAllDrives) params.append("includeItemsFromAllDrives", "true");
-  if (supportsAllDrives) params.append("supportsAllDrives", "true");
-  if (spaces) params.append("spaces", spaces);
-  if (orderBy) params.append("orderBy", orderBy);
+  // Generate cache key based on folderId
+  const cacheKey = `folder:${folderId}`;
   
-  // Build query - folderId needs to be properly escaped for Google Drive API
-  let query = "";
-  if (folderId) {
-    // Google Drive file IDs are safe to use directly since we validated the format
-    query = `'${folderId}' in parents and trashed = false`;
-  } else if (q) {
-    query = q;
-  }
-  if (query) {
-    params.append("q", query);
-  }
-  
-  // Generate cache key
-  const cacheKey = getCacheKey({
-    pageSize,
-    fields,
-    folderId,
-    pageToken,
-    includeItemsFromAllDrives,
-    supportsAllDrives,
-    q,
-    spaces,
-    orderBy,
-  });
-  
-  // Check cache first
-  let cachedData = null;
-  try {
-    cachedData = await cache.get(cacheKey);
-    if (cachedData) {
-      console.log("Cache hit for key:", cacheKey.substring(0, 50) + "...");
-      return c.json(cachedData);
+  // Check cache first (unless refresh is requested)
+  if (!refresh) {
+    let cachedData = null;
+    try {
+      cachedData = await cache.get(cacheKey);
+      if (cachedData) {
+        console.log("Cache hit for folder:", folderId);
+        return c.json(cachedData);
+      }
+    } catch (error) {
+      console.error("Cache get failed, fetching fresh data:", error);
     }
-  } catch (error) {
-    console.error("Cache get failed, fetching fresh data:", error);
+  } else {
+    console.log("Refresh requested for folder:", folderId);
   }
   
-  console.log("Cache miss for key:", cacheKey.substring(0, 50) + "...");
+  console.log("Fetching fresh data for folder:", folderId);
+  
+  // Build query parameters with fixed values
+  const params = new URLSearchParams();
+  params.append("pageSize", "100");
+  params.append("fields", FIXED_FIELDS);
+  params.append("includeItemsFromAllDrives", "true");
+  params.append("supportsAllDrives", "true");
+  params.append("spaces", "drive");
+  params.append("corpora", "domain");
+  params.append("driveId", GOOGLE_DRIVE_ID);
+  params.append("orderBy", "modifiedTime desc");
+  
+  // Build query for folder contents
+  const query = `'${folderId}' in parents and trashed = false`;
+  params.append("q", query);
   
   try {
     const response = await fetch(
@@ -122,6 +96,7 @@ app.post("/api/drive/files/list", async (c) => {
     // Cache the response
     try {
       await cache.set(cacheKey, data, CACHE_TTL_MS);
+      console.log("Cached data for folder:", folderId);
     } catch (error) {
       console.error("Failed to cache response:", error);
       // Continue even if caching fails

@@ -11,172 +11,73 @@ import { rootId } from "./../globalConstant";
  */
 const nodesCache = {};
 
-function buildFilesListArg(args) {
-  const result = {};
-
-  const authorisedKeys = [
-    "pageSize",
-    "fields",
-    "q",
-    "folderId",
-    "pageToken",
-    "spaces",
-    "includeItemsFromAllDrives",
-    "includeTeamDriveItems",
-    "supportsAllDrives",
-    "supportsTeamDrives",
-    "orderBy",
-  ];
-
-  for (const key of Object.keys(args)) {
-    if (!authorisedKeys.includes(key)) {
-      continue;
-    }
-    result[key] = args[key];
-  }
-
-  return result;
-}
-
-function gFilesList(listOptions) {
-  return listDriveFiles(buildFilesListArg(listOptions));
-}
-
-async function loopRequest(listOptions) {
-  /**
-   * Make as many requests that are necessary to retrieve the content of
-   * a folder.
-   *
-   * @param {object} listOptions : necessary to build the request to google
-   * @returns Array of files
-   */
-  const result = [];
-  let nextPageToken;
-  do {
-    const response = await gFilesList({
-      ...listOptions,
-      pageToken: nextPageToken,
-    });
-
-    nextPageToken = response.nextPageToken;
-    if (!response.files || response.files.length <= 0) {
-      nextPageToken = null;
-      break;
-    }
-    for (const file of response.files) {
-      result.push(file);
-    }
-  } while (nextPageToken);
-  return result;
-}
-
-function sortNodesDirectoryFirst(node0, node1) {
-  if (isFolder(node0) && !isFolder(node1)) {
-    return -1;
-  } else if (!isFolder(node0) && isFolder(node1)) {
-    return 1;
-  } else {
-    return node0.name.localeCompare(node1.name);
-  }
-}
-
-async function higherGetSortedNodes(
-  getSortedNodesFunction,
-  pageSize,
-  fields,
-  folderId
-) {
-  const nodes = await getSortedNodesFunction(pageSize, fields, folderId);
-  nodes.sort(sortNodesDirectoryFirst);
-  return nodes;
-}
-
-const folderIdDict = {};
-
-function addFolderId(folderId) {
-  folderIdDict[folderId] = true;
-}
-
-function retrieveFolderIds(nodes) {
-  nodes.forEach((node) => {
-    // console.log("node", node);
-    if (isFolder(node)) {
-      addFolderId(node.id);
-    }
-  });
-}
-
-async function getNodesFromDirectory(pageSize, fields, folderId) {
-  if (nodesCache[folderId]) {
+async function getNodesFromDirectory(folderId, refresh = false) {
+  // If refresh is requested, skip cache
+  if (!refresh && nodesCache[folderId]) {
     return nodesCache[folderId];
   }
 
-  const result = await loopRequest({
-    pageSize,
-    fields,
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
+  const result = await listDriveFiles({
     folderId,
-    spaces: "drive",
+    refresh,
   });
 
-  retrieveFolderIds(result);
-
-  nodesCache[folderId] = [...result];
-
-  return result;
-}
-
-export async function getSortedNodesFromDirectory(pageSize, fields, folderId) {
-  return await higherGetSortedNodes(
-    getNodesFromDirectory,
-    pageSize,
-    fields,
-    folderId
-  );
-}
-
-async function getSharedNodes(pageSize, fields) {
-  const result = await loopRequest({
-    pageSize,
-    fields,
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
-    q: "sharedWithMe = true",
-    spaces: "drive",
+  const files = result.files || [];
+  
+  // Store folder IDs for later use
+  files.forEach((file) => {
+    if (isFolder(file)) {
+      // Track folder IDs if needed
+    }
   });
 
-  return result;
+  nodesCache[folderId] = [...files];
+
+  return files;
 }
 
-async function getSortedSharedNodes(pageSize, fields) {
-  return await higherGetSortedNodes(getSharedNodes, pageSize, fields);
+export async function getSortedNodesFromDirectory(folderId, refresh = false) {
+  const nodes = await getNodesFromDirectory(folderId, refresh);
+  // Sort directories first, then alphabetically
+  nodes.sort((node0, node1) => {
+    if (isFolder(node0) && !isFolder(node1)) {
+      return -1;
+    } else if (!isFolder(node0) && isFolder(node1)) {
+      return 1;
+    } else {
+      return node0.name.localeCompare(node1.name);
+    }
+  });
+  return nodes;
 }
 
-async function initNodesFromRoot() {
-  return await getSortedNodesFromDirectory(999, "*", "root");
+async function initNodesFromRoot(refresh = false) {
+  return await getSortedNodesFromDirectory("root", refresh);
 }
 
-async function initSharedNodes() {
-  return await getSortedSharedNodes(999, "*");
+// Note: shared and every modes not yet updated for new API
+async function initSharedNodes(refresh = false) {
+  // For now, treat as empty - this would need a different API endpoint
+  return [];
 }
 
-async function initEveryNodes() {
-  return await getSortedEveryNodes(999, "*");
+async function initEveryNodes(refresh = false) {
+  // For now, treat as empty - this would need a different API endpoint
+  return [];
 }
 
-export async function triggerFilesRequest(initSwitch) {
-  function grabFiles(initSwitch) {
+export async function triggerFilesRequest(initSwitch, refresh = false) {
+  function grabFiles(initSwitch, refresh) {
     switch (initSwitch) {
       case "drive":
-        return initNodesFromRoot();
+        return initNodesFromRoot(refresh);
       case "shared":
-        return initSharedNodes();
+        return initSharedNodes(refresh);
       case "every":
-        return initEveryNodes();
+        return initEveryNodes(refresh);
       default:
         console.error(`initSwitch "${initSwitch}" is not handled.`);
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
           resolve([]);
         });
     }
@@ -184,7 +85,7 @@ export async function triggerFilesRequest(initSwitch) {
 
   setStore("nodes", (current) => ({ ...current, isLoading: true }));
 
-  let newNodes = await grabFiles(initSwitch);
+  let newNodes = await grabFiles(initSwitch, refresh);
 
   const richerNodes = getRicherNodes(newNodes, store.nodes.content[rootId].id);
 
