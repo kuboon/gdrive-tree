@@ -1,8 +1,8 @@
 import { NavLink } from "solid-app-router";
 import { onMount } from "solid-js";
 
-import { store } from "../index";
-import { triggerFilesRequest } from "./triggerFilesRequest";
+import { store } from "../index.jsx";
+import { triggerFilesRequest } from "./triggerFilesRequest.js";
 
 const Tabs = ({ initSwitch }) => {
   onMount(() => {

@@ -1,10 +1,10 @@
-import { createSignal, createEffect, Show, onMount } from "solid-js";
+import { Show, onMount } from "solid-js";
 
-import { store, setStore } from "../index";
-import Tree from "./tree";
-import SpinningWheel from "../SpinningWheel";
-import { checkHasCredential } from "../checkHasCredential";
-import { triggerFilesRequest } from "./triggerFilesRequest";
+import { store } from "../index.jsx";
+import Tree from "./tree/index.jsx";
+import SpinningWheel from "../SpinningWheel.jsx";
+import { checkHasCredential } from "../checkHasCredential.js";
+import { triggerFilesRequest } from "./triggerFilesRequest.js";
 
 const ShowFilesButton = ({ initSwitch }) => {
   onMount(() => {
@@ -33,14 +33,14 @@ const ShowFilesButton = ({ initSwitch }) => {
       when={isReady()}
       fallback={
         <Container>
-          <button class="btn" onClick={() => triggerFilesRequest(initSwitch)}>
+          <button type="button" class="btn" onClick={() => triggerFilesRequest(initSwitch)}>
             Show Files
           </button>
         </Container>
       }
     >
       <Container>
-        <button class="btn" disabled={isReady()}>
+        <button type="button" class="btn" disabled={isReady()}>
           <BigSpinningWheel />
         </button>
       </Container>

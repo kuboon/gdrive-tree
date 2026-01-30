@@ -1,6 +1,6 @@
-import File from "./File";
-import Folder from "./Folder";
-import { isFolder } from "./node";
+import File from "./File.jsx";
+import Folder from "./Folder.jsx";
+import { isFolder } from "./node.js";
 
 const Node = ({ node, mustAutofocus }) => {
   if (isFolder(node)) {

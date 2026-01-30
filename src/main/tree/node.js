@@ -1,7 +1,7 @@
 import { produce } from "solid-js/store";
 import _ from "lodash";
 
-import { store, setStore } from "../../index";
+import { store, setStore } from "../../index.jsx";
 
 function getNodeById_(nodes, id) {
   const node = nodes.content[id];
