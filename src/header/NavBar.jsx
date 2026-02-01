@@ -10,7 +10,7 @@ const NavBar = () => {
 
   async function handleRefresh() {
     if (isRefreshing()) return;
-    
+
     setIsRefreshing(true);
     setError("");
     try {
@@ -21,7 +21,7 @@ const NavBar = () => {
       if (currentPath.includes("/shared")) {
         initSwitch = "shared";
       }
-      
+
       await triggerFilesRequest(initSwitch, true); // Pass refresh=true
       console.log("Files refreshed successfully");
     } catch (err) {
@@ -39,9 +39,7 @@ const NavBar = () => {
         <a class="normal-case text-xl">GDrive Tree</a>
       </div>
       <div class="navbar-end gap-2">
-        {error() && (
-          <span class="badge badge-error">{error()}</span>
-        )}
+        {error() && <span class="badge badge-error">{error()}</span>}
         <button
           type="button"
           class={`btn btn-sm ${isRefreshing() ? "btn-disabled" : ""}`}

@@ -2,7 +2,7 @@ import { onMount } from "solid-js";
 
 import Tabs from "./Tabs.jsx";
 import TreeContainer from "./TreeContainer.jsx";
-import { Routes, Route } from "solid-app-router";
+import { Route, Routes } from "solid-app-router";
 import { hiddenClass } from "../globalConstant.js";
 
 const Main = () => {

@@ -16,7 +16,7 @@ const defaultRootNode = (() => {
         name: "ROOT",
         mimeType: "application/vnd.google-apps.folder",
       },
-      null
+      null,
     ),
     isExpanded: true,
   };

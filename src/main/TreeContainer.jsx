@@ -1,4 +1,4 @@
-import { Show, onMount } from "solid-js";
+import { onMount, Show } from "solid-js";
 
 import { store } from "../index.jsx";
 import Tree from "./tree/index.jsx";
@@ -33,7 +33,11 @@ const ShowFilesButton = ({ initSwitch }) => {
       when={isReady()}
       fallback={
         <Container>
-          <button type="button" class="btn" onClick={() => triggerFilesRequest(initSwitch)}>
+          <button
+            type="button"
+            class="btn"
+            onClick={() => triggerFilesRequest(initSwitch)}
+          >
             Show Files
           </button>
         </Container>
@@ -53,11 +57,9 @@ const TreeContainer = ({ initSwitch }) => {
 
   return (
     <Show
-      when={
-        store.hasCredential &&
+      when={store.hasCredential &&
         store.nodes.isInitialised &&
-        !store.nodes.isLoading
-      }
+        !store.nodes.isLoading}
       fallback={<ShowFilesButton initSwitch={initSwitch} />}
     >
       <Tree id="root" />

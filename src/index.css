@@ -13,13 +13,11 @@ body,
   display: inline-block;
   position: relative;
 }
-.lds-hourglass-big {
-}
+.lds-hourglass-big {}
 .lds-hourglass-big:after {
   border-width: 1.4rem;
 }
-.lds-hourglass-small {
-}
+.lds-hourglass-small {}
 .lds-hourglass-small:after {
   border-width: 0.5rem;
 }

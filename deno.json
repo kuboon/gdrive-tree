@@ -1,11 +1,6 @@
 {
   "tasks": {
-    "bundle": "npm run build",
-    "serve": "deno run --allow-net --allow-read=dist jsr:@std/http/file-server dist",
-    "server": "deno run --allow-net --allow-read --allow-env --unstable-kv server/main.ts",
-    "dev": "npm run dev",
-    "build": "npm run build",
-    "preview": "npm run preview"
+    "serve": "deno run -P --env server/main.ts"
   },
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4.6.15",
@@ -21,7 +16,8 @@
   "permissions": {
     "default": {
       "net": true,
-      "read": ["dist"]
+      "read": ["dist"],
+      "env": ["GOOGLE_DRIVE_ID", "GOOGLE_KEY"]
     }
   }
 }

@@ -7,7 +7,7 @@ const File = ({ node, mustAutofocus }) => {
       class="py-1"
       onClick={(e) => {
         const childFocusableElement = findNearestLowerFocusableElement(
-          e.currentTarget
+          e.currentTarget,
         );
 
         childFocusableElement.focus();

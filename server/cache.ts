@@ -30,12 +30,12 @@ export class MemoryCache implements DriveCache {
   get(key: string): Promise<unknown | null> {
     const entry = this.cache.get(key);
     if (!entry) return Promise.resolve(null);
-    
+
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
       return Promise.resolve(null);
     }
-    
+
     return Promise.resolve(entry.value);
   }
 
@@ -98,18 +98,21 @@ export class DenoKVCache implements DriveCache {
 // Factory function to create the appropriate cache implementation
 export async function createCache(): Promise<DriveCache> {
   const useDenoKV = Deno.env.get("USE_DENO_KV") === "true";
-  
+
   if (useDenoKV) {
     try {
       const kv = await Deno.openKv();
       console.log("Using Deno KV cache");
       return new DenoKVCache(kv);
     } catch (error) {
-      console.warn("Failed to open Deno KV, falling back to memory cache:", error);
+      console.warn(
+        "Failed to open Deno KV, falling back to memory cache:",
+        error,
+      );
       return new MemoryCache();
     }
   }
-  
+
   console.log("Using in-memory cache");
   return new MemoryCache();
 }

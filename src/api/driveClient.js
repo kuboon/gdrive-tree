@@ -4,7 +4,7 @@
 export async function listDriveFiles(options) {
   const { folderId, refresh = false } = options;
   const id = folderId || "root";
-  
+
   const url = `/api/folders/${id}${refresh ? "?refresh=true" : ""}`;
   const response = await fetch(url, {
     method: "GET",

@@ -1,19 +1,19 @@
-import { createSignal, createEffect, onMount, onCleanup } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 
 import { getSortedNodesFromDirectory } from "../triggerFilesRequest.js";
 import Tree from "./index.jsx";
 import {
-  setNodeById,
-  getRicherNodes,
-  getNodePathByNode,
-  setNodesContent,
   getNodeById,
+  getNodePathByNode,
+  getRicherNodes,
+  setNodeById,
+  setNodesContent,
 } from "./node.js";
 import {
+  adjustBodyWidth,
   findChildElementWithPredicat,
   findNearestLowerFocusableElement,
   findNearestUpperLiWithId,
-  adjustBodyWidth,
 } from "./htmlElement.js";
 
 import SpinningWheel from "../../SpinningWheel.jsx";
@@ -110,7 +110,7 @@ const Folder = ({ node, mustAutofocus }) => {
       }
       const childUl = findChildElementWithPredicat(
         parentLi,
-        (element) => element.tagName === "UL"
+        (element) => element.tagName === "UL",
       );
       if (verbose) {
         console.log("childUl", childUl);
@@ -176,7 +176,7 @@ const Folder = ({ node, mustAutofocus }) => {
         const currentNode = nodePath.pop();
         updateNodeHeight(
           currentNode.id,
-          node.isExpanded ? startNodeHeight : -startNodeHeight
+          node.isExpanded ? startNodeHeight : -startNodeHeight,
         );
       }
     }
@@ -248,7 +248,7 @@ const Folder = ({ node, mustAutofocus }) => {
         }
 
         const childFocusableElement = findNearestLowerFocusableElement(
-          e.currentTarget
+          e.currentTarget,
         );
 
         if (document.activeElement !== childFocusableElement) {

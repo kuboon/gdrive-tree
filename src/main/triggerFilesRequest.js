@@ -1,7 +1,7 @@
 import _ from "lodash";
 
 import { getRicherNodes, isFolder } from "./tree/node.js";
-import { store, setStore } from "../index.jsx";
+import { setStore, store } from "../index.jsx";
 import { listDriveFiles } from "../api/driveClient.js";
 
 import { rootId } from "./../globalConstant.js";

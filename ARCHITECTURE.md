@@ -1,15 +1,20 @@
 # Architecture Migration Summary
 
 ## Problem Statement (Japanese)
-jsr:@hono/hono を使ってサーバサイドを作り、google drive へのアクセスは全てサーバサイドを経由するように。
 
-**Translation:** Create a server-side using jsr:@hono/hono, and make all access to Google Drive go through the server-side.
+jsr:@hono/hono を使ってサーバサイドを作り、google drive
+へのアクセスは全てサーバサイドを経由するように。
+
+**Translation:** Create a server-side using jsr:@hono/hono, and make all access
+to Google Drive go through the server-side.
 
 ## Solution Overview
 
-Successfully migrated from a client-side architecture to a server-side architecture using Hono framework with server-side token management.
+Successfully migrated from a client-side architecture to a server-side
+architecture using Hono framework with server-side token management.
 
 ### Before (Client-Side Direct Access)
+
 ```
 ┌─────────┐
 │ Browser │
@@ -30,6 +35,7 @@ Successfully migrated from a client-side architecture to a server-side architect
 ```
 
 ### After (Server-Side Proxy with Environment Token)
+
 ```
 ┌─────────┐
 │ Browser │
@@ -61,6 +67,7 @@ Successfully migrated from a client-side architecture to a server-side architect
 ## Key Changes
 
 ### New Components
+
 1. **Hono Server** (`server/main.ts`)
    - Runs on Deno runtime
    - Provides REST API endpoints
@@ -74,6 +81,7 @@ Successfully migrated from a client-side architecture to a server-side architect
    - Simple fetch-based communication
 
 ### Modified Components
+
 1. **Authentication** (`src/init.js`)
    - Removed all browser OAuth (GIS/GAPI)
    - No external script loading
@@ -95,25 +103,30 @@ Successfully migrated from a client-side architecture to a server-side architect
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/auth/check` | GET | Check if server has valid token |
-| `/api/drive/files/list` | POST | List files from Google Drive |
+| Endpoint                | Method | Description                     |
+| ----------------------- | ------ | ------------------------------- |
+| `/api/auth/check`       | GET    | Check if server has valid token |
+| `/api/drive/files/list` | POST   | List files from Google Drive    |
 
 **Removed endpoints:**
+
 - `POST /api/auth/token` - No longer needed (token from env)
 - `POST /api/auth/revoke` - No longer needed (server-side only)
 
 ## Security Improvements
 
-1. **No Client-Side Tokens**: Access tokens never transmitted to or stored in browser
-2. **Environment-Based Auth**: Token configured server-side via environment variables
-3. **Simpler Architecture**: No session management, token storage, or OAuth flow complexity
+1. **No Client-Side Tokens**: Access tokens never transmitted to or stored in
+   browser
+2. **Environment-Based Auth**: Token configured server-side via environment
+   variables
+3. **Simpler Architecture**: No session management, token storage, or OAuth flow
+   complexity
 4. **Input Validation**: FolderId parameter validated against regex pattern
 
 ## Running the Application
 
 ### Development
+
 ```bash
 # Set token
 export GOOGLE_DRIVE_TOKEN=your-token
@@ -126,6 +139,7 @@ deno task server
 ```
 
 ### Production
+
 ```bash
 # Build frontend
 npm run build
@@ -136,6 +150,7 @@ deno task server
 ```
 
 ## Files Changed
+
 - ✅ Modified: `server/main.ts` - Simplified to use env token
 - ✅ Modified: `src/api/driveClient.js` - Removed session logic
 - ✅ Modified: `src/init.js` - Removed OAuth libraries
@@ -147,11 +162,13 @@ deno task server
 ## Token Management
 
 **Getting a Token:**
+
 1. OAuth 2.0 Playground: https://developers.google.com/oauthplayground/
 2. gcloud CLI: `gcloud auth application-default print-access-token`
 3. Service Account: Generate from JSON key file
 
 **Token Lifetime:**
+
 - Access tokens typically expire after 1 hour
 - For long-running deployments, consider:
   - Using a service account
@@ -159,6 +176,7 @@ deno task server
   - Using a refresh token to obtain new access tokens
 
 ## Compatibility
+
 - Browser: All modern browsers (no browser-specific auth)
 - Runtime: Deno 1.x or higher
 - Node.js: 14.x or higher (for frontend build)

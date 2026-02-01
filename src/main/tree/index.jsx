@@ -1,13 +1,13 @@
-import { createEffect, onMount, onCleanup } from "solid-js";
+import { createEffect, onCleanup, onMount } from "solid-js";
 
 import { tabbable } from "tabbable";
 
 import Node from "./Node.jsx";
-import { setNodeById, getNodeById, isFolder } from "./node.js";
+import { getNodeById, isFolder, setNodeById } from "./node.js";
 import {
+  adjustBodyWidth,
   findNearestLowerFocusableElement,
   findNearestUpperLiWithId,
-  adjustBodyWidth,
   isElementVisible,
 } from "./htmlElement.js";
 import { customTransitionDuration } from "../../globalConstant.js";
@@ -36,20 +36,20 @@ const Tree = ({ id }) => {
 
   function mod(m, n) {
     return ((m % n) + n) % n;
-  };
+  }
 
   function findFocusableElement(
     resTabbable,
     indexTabbableElement,
     increment,
-    cycle
+    cycle,
   ) {
     const indexNextTabbableElement = cycle
       ? mod(indexTabbableElement + increment, resTabbable.length)
       : Math.max(
-          0,
-          Math.min(indexTabbableElement + increment, resTabbable.length - 1)
-        );
+        0,
+        Math.min(indexTabbableElement + increment, resTabbable.length - 1),
+      );
     const nextTabbableElement = resTabbable[indexNextTabbableElement];
 
     // Check if every parent elements are expanded, so visible
@@ -60,7 +60,7 @@ const Tree = ({ id }) => {
         resTabbable,
         indexNextTabbableElement,
         increment,
-        cycle
+        cycle,
       );
     }
   }
@@ -77,7 +77,7 @@ const Tree = ({ id }) => {
       resTabbable,
       indexTabbableElement,
       increment,
-      cycle
+      cycle,
     );
   }
 
@@ -315,19 +315,15 @@ const Tree = ({ id }) => {
   return (
     <div
       ref={treeContainerRef}
-      class={
-        isRoot
-          ? "overflow-hidden tree--open"
-          : "overflow-hidden tree-container-animation custom-transition-duration"
-      }
+      class={isRoot
+        ? "overflow-hidden tree--open"
+        : "overflow-hidden tree-container-animation custom-transition-duration"}
     >
       <div
         ref={treeRef}
-        class={
-          isRoot
-            ? "custom-transition-duration"
-            : "tree custom-transition-duration ml-4"
-        }
+        class={isRoot
+          ? "custom-transition-duration"
+          : "tree custom-transition-duration ml-4"}
       >
         <ul>
           <For each={nodes()}>
