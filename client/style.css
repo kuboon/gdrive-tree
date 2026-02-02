@@ -1,0 +1,10 @@
+@font-face {
+  font-family: "Local Noto Sans JP";
+  src:
+    local("Noto Sans JP"),
+     /* Windows */local("Noto Sans CJK JP Regular"); /* Android */
+}
+
+:where(:root) {
+  font-family: "Local Noto Sans JP", "Noto Sans JP", sans-serif;
+}

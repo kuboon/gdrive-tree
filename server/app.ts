@@ -7,7 +7,7 @@ import { driveFiles } from "./gdrive.ts";
 
 const bundleResult = await bundle(false);
 
-const app = new Hono();
+const app: Hono = new Hono();
 app
   .use("/*", cors())
   .get("/api/folders/:id", async (c) => {
@@ -25,4 +25,5 @@ app
 // Serve bundled application using Deno.bundle
 app.get("/*", createBundleServeMiddleware(bundleResult));
 
-export default { app, fetch: app.fetch.bind(app) };
+const appFetch: Deno.ServeHandler = app.fetch.bind(app);
+export default { app, fetch: appFetch };

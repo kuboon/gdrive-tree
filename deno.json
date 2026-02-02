@@ -1,18 +1,20 @@
 {
+  "workspace": [
+    "./client",
+    "./server"
+  ],
   "tasks": {
     "fmt": "deno fmt && deno lint && deno check",
+    "dev": "deno serve -P --env --watch=client,server server/app.ts",
     "serve": "deno serve -P --env server/app.ts"
   },
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4.6.15",
-    "solid-js": "npm:solid-js@^1.3.10",
-    "solid-app-router": "npm:solid-app-router@^0.3.1",
-    "lodash": "npm:lodash@^4.17.21",
-    "tabbable": "npm:tabbable@^5.3.1"
+    "@remix-run/component": "npm:@remix-run/component@^0.4.0"
   },
   "compilerOptions": {
-    "jsx": "preserve",
-    "jsxImportSource": "solid-js"
+    "jsx": "react-jsx",
+    "jsxImportSource": "@remix-run/component"
   },
   "permissions": {
     "default": {
