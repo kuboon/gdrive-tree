@@ -7,6 +7,9 @@ export interface DriveFile {
   webViewLink: string;
   iconLink: string;
 }
+const googleKey = Deno.env.get("GOOGLE_KEY")
+if(!googleKey) throw new Error("GOOGLE_KEY required.")
+
 export async function driveFiles(
   folderId: string,
   refresh = false,
@@ -14,7 +17,7 @@ export async function driveFiles(
   const FIXED_FIELDS =
     "files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink,parents)";
   const params = new URLSearchParams();
-  params.append("key", Deno.env.get("GOOGLE_KEY")!);
+  params.append("key", googleKey!);
   params.append("includeItemsFromAllDrives", "true");
   params.append("supportsAllDrives", "true");
 

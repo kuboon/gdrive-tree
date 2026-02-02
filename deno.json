@@ -5,6 +5,7 @@
   ],
   "tasks": {
     "fmt": "deno fmt && deno lint && deno check",
+    "check": "deno fmt --check && deno lint && deno check",
     "dev": "deno serve -P --env --watch=client,server server/app.ts",
     "serve": "deno serve -P --env server/app.ts"
   },
