@@ -1,12 +1,11 @@
-import { render } from "solid-js/web";
-import { createStore } from "solid-js/store";
-import { Router } from "solid-app-router";
-
 import "./index.css";
-import "./init.js";
 import App from "./App.jsx";
 import { getRicherNode } from "./main/tree/node.js";
 import { rootId } from "./globalConstant.js";
+
+import { render } from "solid-js/web";
+import { createStore } from "solid-js/store";
+import { Router } from "solid-app-router";
 
 const defaultRootNode = (() => {
   const res = {
@@ -25,8 +24,6 @@ const defaultRootNode = (() => {
 })();
 
 const defaultStore = {
-  isExternalLibLoaded: false,
-  hasCredential: false,
   nodes: {
     content: { root: defaultRootNode },
     isInitialised: false,

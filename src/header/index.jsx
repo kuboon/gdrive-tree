@@ -1,7 +1,6 @@
 import { createEffect } from "solid-js";
 
 import NavBar from "./NavBar.jsx";
-import { store } from "../index.jsx";
 import { hiddenClass } from "../globalConstant.js";
 
 // TODO: deal with credential revocation
@@ -11,12 +10,10 @@ const Header = () => {
   let timeoutID = null;
 
   createEffect(() => {
-    if (store.isExternalLibLoaded) {
-      timeoutID = setTimeout(() => {
-        displayTopBar(refHeader, "hide");
-        timeoutID = null;
-      }, 300);
-    }
+    timeoutID = setTimeout(() => {
+      displayTopBar(refHeader, "hide");
+      timeoutID = null;
+    }, 300);
   });
 
   const displayTopBar = (headerElement, action) => {
@@ -35,13 +32,8 @@ const Header = () => {
         break;
       }
       case "hide": {
-        if (!store.isExternalLibLoaded) {
-          headerElement.classList.remove(hiddenClass);
-          mainElement.classList.remove(hiddenClass);
-        } else {
-          headerElement.classList.add(hiddenClass);
-          mainElement.classList.add(hiddenClass);
-        }
+        headerElement.classList.add(hiddenClass);
+        mainElement.classList.add(hiddenClass);
         break;
       }
       default: {

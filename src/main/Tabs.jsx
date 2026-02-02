@@ -1,14 +1,11 @@
+import { triggerFilesRequest } from "./triggerFilesRequest.js";
+
 import { NavLink } from "solid-app-router";
 import { onMount } from "solid-js";
 
-import { store } from "../index.jsx";
-import { triggerFilesRequest } from "./triggerFilesRequest.js";
-
 const Tabs = ({ initSwitch }) => {
   onMount(() => {
-    if (store.isExternalLibLoaded) {
-      triggerFilesRequest(initSwitch);
-    }
+    triggerFilesRequest(initSwitch);
   });
 
   const tabs = [

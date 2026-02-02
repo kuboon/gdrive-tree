@@ -12,5 +12,5 @@ export function bundle(write: boolean): Promise<Deno.bundle.Result> {
 }
 
 if (import.meta.main) {
-  await bundle(false);
+  await bundle(true);
 }

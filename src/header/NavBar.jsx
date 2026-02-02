@@ -1,10 +1,8 @@
-import { createEffect, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 
-import { checkHasCredential } from "../checkHasCredential.js";
 import { triggerFilesRequest } from "../main/triggerFilesRequest.js";
 
 const NavBar = () => {
-  createEffect(checkHasCredential);
   const [isRefreshing, setIsRefreshing] = createSignal(false);
   const [error, setError] = createSignal("");
 

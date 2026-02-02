@@ -3,7 +3,6 @@ import { onMount, Show } from "solid-js";
 import { store } from "../index.jsx";
 import Tree from "./tree/index.jsx";
 import SpinningWheel from "../SpinningWheel.jsx";
-import { checkHasCredential } from "../checkHasCredential.js";
 import { triggerFilesRequest } from "./triggerFilesRequest.js";
 
 const ShowFilesButton = ({ initSwitch }) => {
@@ -26,7 +25,7 @@ const ShowFilesButton = ({ initSwitch }) => {
     return <div id="show-files-button-container">{props.children}</div>;
   };
 
-  const isReady = () => !store.isExternalLibLoaded || store.nodes.isLoading;
+  const isReady = () => store.nodes.isLoading;
 
   return (
     <Show
@@ -53,13 +52,9 @@ const ShowFilesButton = ({ initSwitch }) => {
 };
 
 const TreeContainer = ({ initSwitch }) => {
-  createEffect(checkHasCredential);
-
   return (
     <Show
-      when={store.hasCredential &&
-        store.nodes.isInitialised &&
-        !store.nodes.isLoading}
+      when={!store.nodes.isLoading}
       fallback={<ShowFilesButton initSwitch={initSwitch} />}
     >
       <Tree id="root" />

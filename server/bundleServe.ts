@@ -17,7 +17,7 @@ export function createBundleServeMiddleware(
       const path = file.path;
       const ext = path.split(".").pop();
       const mime = (ext && extToMime[ext]) || "application/octet-stream";
-      acc[file.path] = new Response(file.text(), {
+      acc[file.path] = new Response(file.contents, {
         headers: {
           "Content-Type": mime,
         },
@@ -29,7 +29,7 @@ export function createBundleServeMiddleware(
     const pathname = reqUrl.pathname === "/" ? "/index.html" : reqUrl.pathname;
     const response = mapping[pathname];
     if (response) {
-      return Promise.resolve(response);
+      return Promise.resolve(response.clone());
     }
     return next();
   };
