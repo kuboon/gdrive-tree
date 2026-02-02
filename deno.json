@@ -1,6 +1,7 @@
 {
   "tasks": {
-    "serve": "deno run -P --env server/main.ts"
+    "fmt": "deno fmt && deno lint && deno check",
+    "serve": "deno serve -P --env server/app.ts"
   },
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4.6.15",
@@ -10,7 +11,7 @@
     "tabbable": "npm:tabbable@^5.3.1"
   },
   "compilerOptions": {
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "jsxImportSource": "solid-js"
   },
   "permissions": {
@@ -19,5 +20,6 @@
       "read": ["dist"],
       "env": ["GOOGLE_DRIVE_ID", "GOOGLE_KEY"]
     }
-  }
+  },
+  "unstable": ["bundle"]
 }
