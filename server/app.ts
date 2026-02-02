@@ -23,7 +23,12 @@ app
   });
 
 // Serve bundled application using Deno.bundle
-app.get("/*", createBundleServeMiddleware(bundleResult));
+app.get("/*", createBundleServeMiddleware(bundleResult))
+  .get("*", (c) => c.text("Not Found", 404))
+  .onError((err, c) => {
+    console.error(err);
+    return c.json({ error: "Internal Server Error" }, 500);
+  });
 
 const appFetch: Deno.ServeHandler = app.fetch.bind(app);
 export default { app, fetch: appFetch };

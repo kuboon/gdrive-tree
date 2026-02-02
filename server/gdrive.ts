@@ -1,4 +1,16 @@
-export async function driveFiles(folderId: string, refresh = false) {
+export interface DriveFile {
+  parents: string[];
+  id: string;
+  name: string;
+  mimeType: string;
+  modifiedTime: string;
+  webViewLink: string;
+  iconLink: string;
+}
+export async function driveFiles(
+  folderId: string,
+  refresh = false,
+): Promise<DriveFile[]> {
   const FIXED_FIELDS =
     "files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink,parents)";
   const params = new URLSearchParams();
@@ -24,8 +36,8 @@ export async function driveFiles(folderId: string, refresh = false) {
       `Google Drive API error: ${response.status} ${response.statusText} - ${errorText}`,
     );
   }
-  const json = await response.json();
-  return json.files;
+  const json = await response.json() as { files: DriveFile[] };
+  return json.files.sort((a, b) => a.name.localeCompare(b.name));
 }
 async function cachedFetch(url: string, refresh: boolean) {
   const cache = await caches.open("gdrive-folder");
