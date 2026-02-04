@@ -7,6 +7,12 @@ export interface DriveFile {
   webViewLink: string;
   iconLink: string;
 }
+
+const GOOGLE_KEY = Deno.env.get("GOOGLE_KEY")!;
+if (!GOOGLE_KEY) {
+  throw new Error("GOOGLE_KEY environment variable is not set");
+}
+
 export async function driveFiles(
   folderId: string,
   refresh = false,
@@ -14,7 +20,7 @@ export async function driveFiles(
   const FIXED_FIELDS =
     "files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink,parents)";
   const params = new URLSearchParams();
-  params.append("key", Deno.env.get("GOOGLE_KEY")!);
+  params.append("key", GOOGLE_KEY);
   params.append("includeItemsFromAllDrives", "true");
   params.append("supportsAllDrives", "true");
 
@@ -52,4 +58,151 @@ async function cachedFetch(url: string, refresh: boolean) {
   const res = await fetch(url);
   cache.put(url, res.clone());
   return res;
+}
+
+/**
+ * フォルダ内のサブフォルダを取得
+ */
+export async function getFolders(folderId: string): Promise<DriveFile[]> {
+  const params = new URLSearchParams();
+  params.append("key", GOOGLE_KEY!);
+  params.append("includeItemsFromAllDrives", "true");
+  params.append("supportsAllDrives", "true");
+  params.append("pageSize", "100");
+  params.append("fields", "files(id,name,mimeType,parents)");
+  const query = `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  params.append("q", query);
+
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
+  );
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Google Drive API error: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
+  const json = await response.json() as { files: DriveFile[] };
+  return json.files;
+}
+
+/**
+ * フォルダ内のファイルを取得（フォルダは除く）
+ */
+export async function getFiles(folderId: string): Promise<DriveFile[]> {
+  const params = new URLSearchParams();
+  params.append("key", GOOGLE_KEY);
+  params.append("includeItemsFromAllDrives", "true");
+  params.append("supportsAllDrives", "true");
+  params.append("pageSize", "1000");
+  params.append("fields", "files(id,name,mimeType,parents)");
+  const query = `'${folderId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`;
+  params.append("q", query);
+
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
+  );
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Google Drive API error: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
+  const json = await response.json() as { files: DriveFile[] };
+  return json.files;
+}
+
+/**
+ * 親フォルダ内に同名のフォルダを検索、なければ作成
+ */
+export async function getOrCreateFolder(
+  parentId: string,
+  folderName: string,
+): Promise<DriveFile> {
+  // まず検索
+  const params = new URLSearchParams();
+  params.append("key", Deno.env.get("GOOGLE_KEY")!);
+  params.append("includeItemsFromAllDrives", "true");
+  params.append("supportsAllDrives", "true");
+  params.append("fields", "files(id,name,mimeType,parents)");
+  const query = `name='${folderName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  params.append("q", query);
+
+  const searchResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
+  );
+  if (!searchResponse.ok) {
+    throw new Error(`Search failed: ${searchResponse.statusText}`);
+  }
+  const searchJson = await searchResponse.json() as { files: DriveFile[] };
+  
+  if (searchJson.files.length > 0) {
+    return searchJson.files[0];
+  }
+
+  // なければ作成
+  const createFolderUrl = `https://www.googleapis.com/drive/v3/files?key=${Deno.env.get("GOOGLE_KEY")}&supportsAllDrives=true`;
+  const createResponse = await fetch(
+    createFolderUrl,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: folderName,
+        mimeType: "application/vnd.google-apps.folder",
+        parents: [parentId],
+      }),
+    },
+  );
+  if (!createResponse.ok) {
+    console.error(`getOrCreateFolder(${parentId}, ${folderName}) failed.`);
+    throw new Error(`Create folder failed: ${createResponse.statusText}`);
+  }
+  return await createResponse.json() as DriveFile;
+}
+
+/**
+ * ファイルをリネーム
+ */
+export async function renameFile(
+  fileId: string,
+  newName: string,
+): Promise<void> {
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?key=${Deno.env.get("GOOGLE_KEY")}&supportsAllDrives=true`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Rename failed: ${response.statusText}`);
+  }
+}
+
+/**
+ * ファイルを移動（親フォルダを変更）
+ */
+export async function moveFile(
+  fileId: string,
+  oldParentId: string,
+  newParentId: string,
+): Promise<void> {
+  const params = new URLSearchParams();
+  params.append("key", Deno.env.get("GOOGLE_KEY")!);
+  params.append("supportsAllDrives", "true");
+  params.append("addParents", newParentId);
+  params.append("removeParents", oldParentId);
+
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?${params.toString()}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Move failed: ${response.statusText}`);
+  }
 }

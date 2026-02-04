@@ -4,12 +4,14 @@ import { createBundleServeMiddleware } from "./bundleServe.ts";
 import { Hono } from "@hono/hono";
 import { cors } from "@hono/hono/cors";
 import { driveFiles } from "./gdrive.ts";
+import { moveAllHandler } from "./move.ts";
 
 const bundleResult = await bundle(false);
 
 const app: Hono = new Hono();
 app
   .use("/*", cors())
+  .post("/api/move-all", moveAllHandler)
   .get("/api/folders/:id", async (c) => {
     const folderId = c.req.param("id");
     const refresh = c.req.query("refresh") === "true";
