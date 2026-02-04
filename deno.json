@@ -8,7 +8,8 @@
     "check": "deno fmt --check && deno lint && deno check",
     "dev": "deno serve -P --env --watch=client,server server/app.ts",
     "bundle": "deno run -P=bundle server/bundle.ts",
-    "serve": "deno serve -P --env server/app.ts"
+    "serve": "deno serve -P --env server/app.ts",
+    "auth": "deno run -A --env server/auth.ts"
   },
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4.6.15",
@@ -25,7 +26,14 @@
       "env": ["GOOGLE_KEY"]
     },
     "bundle": {
-      "write": ["./dist"]
+      "write": ["./dist"],
+      "env": [
+        "GOOGLE_DRIVE_ID",
+        "GOOGLE_KEY",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "GOOGLE_REFRESH_TOKEN"
+      ]
     }
   },
   "unstable": ["bundle"]
