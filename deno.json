@@ -7,6 +7,7 @@
     "fmt": "deno fmt && deno lint && deno check",
     "check": "deno fmt --check && deno lint && deno check",
     "dev": "deno serve -P --env --watch=client,server server/app.ts",
+    "bundle": "deno run -P=bundle server/bundle.ts",
     "serve": "deno serve -P --env server/app.ts"
   },
   "imports": {
@@ -20,8 +21,11 @@
   "permissions": {
     "default": {
       "net": true,
-      "read": ["dist"],
-      "env": ["GOOGLE_DRIVE_ID", "GOOGLE_KEY"]
+      "read": ["./dist"],
+      "env": ["GOOGLE_KEY"]
+    },
+    "bundle": {
+      "write": ["./dist"]
     }
   },
   "unstable": ["bundle"]
