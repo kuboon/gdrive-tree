@@ -124,8 +124,8 @@ export async function moveAllHandler(c: Context) {
 
 // 単体実行時のメイン処理
 if (import.meta.main) {
-  Deno.cron("Log a message", "* * * * *", async() => {
-    console.log(new Date, `Starting file migration...`);
+  Deno.cron("Log a message", "* * * * *", async () => {
+    console.log(new Date(), `Starting file migration...`);
     console.log(`Source folder: ${FOLDER_A_ID}`);
     console.log(`Target folder: ${FOLDER_B_ID}`);
 
