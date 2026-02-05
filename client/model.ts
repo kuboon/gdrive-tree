@@ -98,7 +98,10 @@ export type Msg =
   | { type: "LoadFolderStart"; folderId: string; refresh?: boolean }
   | { type: "LoadFolderSuccess"; folderId: string; files: DriveFile[] }
   | { type: "LoadFolderError"; folderId: string; error: string }
-  | { type: "RefreshFolder"; folderId: string };
+  | { type: "RefreshFolder"; folderId: string }
+  | { type: "InitTreeStart"; rootFolderId: string }
+  | { type: "InitTreeSuccess"; rootFolderId: string; tree: DriveFile[] }
+  | { type: "InitTreeError"; rootFolderId: string; error: string };
 
 // ============================================================================
 // Update
@@ -268,6 +271,69 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
       });
     }
 
+    case "InitTreeStart": {
+      const folderState = getFolderState(msg.rootFolderId);
+      model.folders.set(msg.rootFolderId, {
+        ...folderState,
+        status: "loading",
+        error: null,
+      });
+
+      const cmd = async (): Promise<Msg | null> => {
+        try {
+          const tree = await fetchFolderTree(msg.rootFolderId);
+          return {
+            type: "InitTreeSuccess",
+            rootFolderId: msg.rootFolderId,
+            tree,
+          };
+        } catch (e) {
+          const error = e instanceof Error ? e.message : "Unknown error";
+          return {
+            type: "InitTreeError",
+            rootFolderId: msg.rootFolderId,
+            error,
+          };
+        }
+      };
+
+      return [cmd];
+    }
+
+    case "InitTreeSuccess": {
+      // ツリー全体のフォルダ情報をmodelに登録
+      const rootState = getFolderState(msg.rootFolderId);
+      model.folders.set(msg.rootFolderId, {
+        ...rootState,
+        expanded: false,
+        status: "success",
+        error: null,
+      });
+
+      // 各フォルダの親子関係を構築してmodelに登録
+      for (const folder of msg.tree) {
+        const folderState = getFolderState(folder.id);
+        model.folders.set(folder.id, {
+          ...folderState,
+          expanded: false,
+          status: "success",
+          files: msg.tree.filter((f) => f.parents?.[0] === folder.id),
+        });
+      }
+
+      return [null];
+    }
+
+    case "InitTreeError": {
+      const folderState = getFolderState(msg.rootFolderId);
+      model.folders.set(msg.rootFolderId, {
+        ...folderState,
+        status: "error",
+        error: msg.error,
+      });
+      return [null];
+    }
+
     default:
       return [null];
   }
@@ -323,6 +389,17 @@ async function fetchFolderContents(
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch folder: ${response.statusText}`);
+  }
+  return await response.json();
+}
+
+async function fetchFolderTree(
+  folderId: string,
+): Promise<DriveFile[]> {
+  const url = `/api/tree/${folderId}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch folder tree: ${response.statusText}`);
   }
   return await response.json();
 }

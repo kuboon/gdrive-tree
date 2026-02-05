@@ -1,7 +1,8 @@
-import { Hono } from "@hono/hono";
 import { ensureWatchChannel, getChildren, update } from "./mod.ts";
 import { getWatchChannel } from "./repo.ts";
 import type { DriveItem } from "./types.ts";
+import { isFolder } from "../gdrive.ts";
+import { Hono } from "@hono/hono";
 
 /**
  * Tree 関連の API ルートを提供する Hono middleware
@@ -75,19 +76,27 @@ export function createTreeRouter(): Hono {
       const folderId = c.req.param("id");
       const ret: DriveItem[] = [];
       const children = await getChildren(folderId);
+      const folders = children?.filter(isFolder) || [];
+      if (folders.length === 0) return c.json([]);
 
-      // 再帰的にフォルダを収集
-      async function collectFolders(files: DriveItem[]): Promise<void> {
-        for (const file of files) {
-          if (file.mimeType === "application/vnd.google-apps.folder") {
+      // 再帰的にフォルダを収集（並列数を制限）
+      const concurrencyLimit = 3; // 並列実行数を制限
+      const queue = [...folders];
+
+      while (queue.length > 0) {
+        const batch = queue.splice(0, concurrencyLimit);
+
+        await Promise.all(
+          batch.map(async (file) => {
             ret.push(file);
             const subChildren = await getChildren(file.id);
-            await collectFolders(subChildren);
-          }
-        }
+            const folders = subChildren?.filter(isFolder) || [];
+            if (folders.length > 0) {
+              queue.push(...folders);
+            }
+          }),
+        );
       }
-
-      await collectFolders(children);
 
       return c.json(ret);
     });

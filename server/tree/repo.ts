@@ -60,8 +60,21 @@ export async function getChildren(
 ): Promise<DriveItem[] | null> {
   const ids = await repos.driveItemByParent(folderId).get();
   if (!ids) return null;
-  const result = await kv.getMany(ids.map((id) => repos.driveItem(id).key));
-  return result.map((r) => r.value).filter((v): v is DriveItem => v !== null);
+
+  // Deno KV の getMany は最大10個までなので、バッチ処理
+  const batchSize = 10;
+  const allItems: DriveItem[] = [];
+
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = ids.slice(i, i + batchSize);
+    const result = await kv.getMany(batch.map((id) => repos.driveItem(id).key));
+    const items = result.map((r) => r.value).filter((v): v is DriveItem =>
+      v !== null
+    );
+    allItems.push(...items);
+  }
+
+  return allItems;
 }
 
 export async function saveChildren(
