@@ -56,7 +56,7 @@ function registerUpdateCallback(callback: () => void) {
 }
 
 function triggerAllUpdates() {
-  updateCallbacks.forEach(cb => cb());
+  updateCallbacks.forEach((cb) => cb());
 }
 
 function getFolderState(model: Model, folderId: string): FolderState {
@@ -73,7 +73,13 @@ function getFolderState(model: Model, folderId: string): FolderState {
 // ============================================================================
 
 type Msg =
-  | { type: "RegisterItem"; id: string; itemType: "folder" | "file"; element: HTMLElement | null; parentId?: string }
+  | {
+    type: "RegisterItem";
+    id: string;
+    itemType: "folder" | "file";
+    element: HTMLElement | null;
+    parentId?: string;
+  }
   | { type: "UnregisterItem"; id: string }
   | { type: "SetFocus"; id: string | null }
   | { type: "NavigateUp" }
@@ -81,7 +87,7 @@ type Msg =
   | { type: "NavigateLeft" }
   | { type: "NavigateRight" }
   | { type: "ToggleFolder"; folderId: string }
-  | { type: "LoadFolderStart"; folderId: string }
+  | { type: "LoadFolderStart"; folderId: string; refresh?: boolean }
   | { type: "LoadFolderSuccess"; folderId: string; files: DriveFile[] }
   | { type: "LoadFolderError"; folderId: string; error: string }
   | { type: "RefreshFolder"; folderId: string };
@@ -92,7 +98,7 @@ type Msg =
 
 function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
   const model = globalModel;
-  
+
   switch (msg.type) {
     case "RegisterItem": {
       model.itemRegistry.set(msg.id, {
@@ -117,7 +123,9 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
       const items = getAllVisibleItems();
       if (items.length === 0) return [null];
 
-      const currentIndex = items.findIndex(([id]) => id === model.focusedItemId);
+      const currentIndex = items.findIndex(([id]) =>
+        id === model.focusedItemId
+      );
       if (currentIndex > 0) {
         const nextId = items[currentIndex - 1][0];
         model.focusedItemId = nextId;
@@ -130,8 +138,10 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
       const items = getAllVisibleItems();
       if (items.length === 0) return [null];
 
-      const currentIndex = items.findIndex(([id]) => id === model.focusedItemId);
-      
+      const currentIndex = items.findIndex(([id]) =>
+        id === model.focusedItemId
+      );
+
       if (currentIndex === -1 && items.length > 0) {
         const nextId = items[0][0];
         model.focusedItemId = nextId;
@@ -150,7 +160,10 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
       if (item?.type === "folder") {
         const folderState = getFolderState(model, model.focusedItemId);
         if (!folderState.expanded) {
-          return update({ type: "ToggleFolder", folderId: model.focusedItemId });
+          return update({
+            type: "ToggleFolder",
+            folderId: model.focusedItemId,
+          });
         }
       }
       return [null];
@@ -160,11 +173,14 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
       if (!model.focusedItemId) return [null];
       const item = model.itemRegistry.get(model.focusedItemId);
       const { parentId } = item || {};
-      
+
       if (item?.type === "folder") {
         const folderState = getFolderState(model, model.focusedItemId);
         if (folderState.expanded) {
-          return update({ type: "ToggleFolder", folderId: model.focusedItemId });
+          return update({
+            type: "ToggleFolder",
+            folderId: model.focusedItemId,
+          });
         } else if (parentId) {
           model.focusedItemId = parentId;
           return [() => Promise.resolve({ type: "SetFocus", id: parentId })];
@@ -179,30 +195,43 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
     case "ToggleFolder": {
       const folderState = getFolderState(model, msg.folderId);
       const newExpanded = !folderState.expanded;
-      
-      model.folders.set(msg.folderId, { ...folderState, expanded: newExpanded });
-      
-      if (newExpanded && folderState.files.length === 0 && folderState.status === "idle") {
+
+      model.folders.set(msg.folderId, {
+        ...folderState,
+        expanded: newExpanded,
+      });
+
+      if (
+        newExpanded && folderState.files.length === 0 &&
+        folderState.status === "idle"
+      ) {
         return update({ type: "LoadFolderStart", folderId: msg.folderId });
       }
-      
+
       return [null];
     }
 
     case "LoadFolderStart": {
       const folderState = getFolderState(model, msg.folderId);
-      model.folders.set(msg.folderId, { ...folderState, status: "loading", error: null });
-      
+      model.folders.set(msg.folderId, {
+        ...folderState,
+        status: "loading",
+        error: null,
+      });
+
       const cmd = async (): Promise<Msg | null> => {
         try {
-          const files = await fetchFolderContents(msg.folderId, false);
+          const files = await fetchFolderContents(
+            msg.folderId,
+            msg.refresh ?? false,
+          );
           return { type: "LoadFolderSuccess", folderId: msg.folderId, files };
         } catch (e) {
           const error = e instanceof Error ? e.message : "Unknown error";
           return { type: "LoadFolderError", folderId: msg.folderId, error };
         }
       };
-      
+
       return [cmd];
     }
 
@@ -228,7 +257,11 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
     }
 
     case "RefreshFolder": {
-      return update({ type: "LoadFolderStart", folderId: msg.folderId });
+      return update({
+        type: "LoadFolderStart",
+        folderId: msg.folderId,
+        refresh: true,
+      });
     }
 
     default:
@@ -412,24 +445,24 @@ export function Folder(
 ) {
   // Register this component's update callback
   let unregister: (() => void) | null = null;
-  
+
   const initialize = () => {
     if (!unregister) {
       unregister = registerUpdateCallback(() => handle.update());
     }
   };
-  
-  const cleanup = () => {
-    if (unregister) {
-      unregister();
-      unregister = null;
-    }
-  };
+
+  // const cleanup = () => {
+  //   if (unregister) {
+  //     unregister();
+  //     unregister = null;
+  //   }
+  // };
 
   // Dispatch function with side-effect handling
   const dispatch = (msg: Msg) => {
     const [cmd] = update(msg);
-    
+
     // Handle side effects
     if (cmd) {
       cmd().then((resultMsg) => {
@@ -438,16 +471,16 @@ export function Folder(
         }
       });
     }
-    
+
     // Focus management
     if (msg.type === "SetFocus" && msg.id) {
       focusElement(msg.id);
     }
-    
+
     // Trigger all component updates
     triggerAllUpdates();
   };
-  
+
   initialize();
 
   // Keyboard event handlers
@@ -646,7 +679,7 @@ export function Folder(
                       file,
                       depth: setup.depth + 1,
                       parentId: setup.folderId,
-                      dispatch
+                      dispatch,
                     }}
                   />
                 ))}

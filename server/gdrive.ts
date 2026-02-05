@@ -138,42 +138,23 @@ export async function getOrCreateFolder(
 }
 
 /**
- * ファイルをリネーム
- */
-export async function renameFile(
-  fileId: string,
-  newName: string,
-): Promise<void> {
-  const params = new URLSearchParams();
-  params.append("supportsAllDrives", "true");
-  const url = await buildApiUrl(
-    `https://www.googleapis.com/drive/v3/files/${fileId}`,
-    params,
-  );
-  const headers = await getAuthHeaders();
-
-  const response = await fetch(url, {
-    method: "PATCH",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ name: newName }),
-  });
-  if (!response.ok) {
-    throw new Error(`Rename failed: ${response.statusText}`);
-  }
-}
-
-/**
  * ファイルを移動（親フォルダを変更）
  */
 export async function moveFile(
   fileId: string,
   oldParentId: string,
   newParentId: string,
-): Promise<void> {
+  newName?: string,
+): Promise<DriveFile> {
   const params = new URLSearchParams();
   params.append("supportsAllDrives", "true");
   params.append("addParents", newParentId);
   params.append("removeParents", oldParentId);
+
+  const body: Record<string, string> = {};
+  if (newName) {
+    body.name = newName;
+  }
 
   const url = await buildApiUrl(
     `https://www.googleapis.com/drive/v3/files/${fileId}`,
@@ -184,10 +165,12 @@ export async function moveFile(
   const response = await fetch(url, {
     method: "PATCH",
     headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     throw new Error(`Move failed: ${response.statusText}`);
   }
+  return response.json();
 }
 
 /**

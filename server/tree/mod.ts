@@ -9,12 +9,6 @@ import {
 import { createWatch, driveFiles, stopWatch } from "../gdrive.ts";
 
 /**
- * webhook の URL を環境変数から取得
- * 例: https://yourdomain.com/api/watch
- */
-const WEBHOOK_URL = Deno.env.get("WATCH_WEBHOOK_URL");
-
-/**
  * watch channel の有効期限のバッファ（ミリ秒）
  * 有効期限の1時間前に更新する
  */
@@ -28,10 +22,7 @@ export async function getChildren(
   folderId: string,
   refresh = false,
 ): Promise<DriveFile[]> {
-  // 1. watch channel の確認と作成・更新
-  await ensureWatchChannel(folderId);
-
-  // 2. refresh == false かつキャッシュがあれば返す
+  // 1. refresh == false かつキャッシュがあれば返す
   if (!refresh) {
     const cached = await getCachedFiles(folderId);
     if (cached) {
@@ -39,20 +30,23 @@ export async function getChildren(
     }
   }
 
-  // 3. gdrive.ts の driveFiles を呼び出して取得
+  // 2. gdrive.ts の driveFiles を呼び出して取得
   const files = await driveFiles(folderId);
 
-  // 4. キャッシュに保存
+  // 3. キャッシュに保存
   await saveCachedFiles(folderId, files);
 
-  // 5. 返す
+  // 4. 返す
   return files;
 }
 
 /**
  * watch channel が有効かチェックし、必要に応じて作成・更新
  */
-async function ensureWatchChannel(folderId: string): Promise<void> {
+export async function ensureWatchChannel(
+  webhookUrl: string,
+  folderId: string,
+): Promise<void> {
   const channel = await getWatchChannel(folderId);
   const now = Date.now();
 
@@ -68,10 +62,10 @@ async function ensureWatchChannel(folderId: string): Promise<void> {
       await deleteWatchChannel(folderId);
     }
 
-    // 新しい channel を作成
-    if (WEBHOOK_URL) {
+    // http: の場合は createWatch をスキップ（https のみ）
+    if (webhookUrl.startsWith("https:")) {
       try {
-        const newChannel = await createWatch(folderId, WEBHOOK_URL);
+        const newChannel = await createWatch(folderId, webhookUrl);
         await saveWatchChannel(folderId, newChannel);
         console.log(
           `Created watch channel for folder ${folderId}, expires at ${new Date(
@@ -82,6 +76,10 @@ async function ensureWatchChannel(folderId: string): Promise<void> {
         console.error(`Failed to create watch channel: ${error}`);
         // watch channel の作成に失敗してもファイルリストの取得は続行
       }
+    } else {
+      console.log(
+        `Skipping watch channel creation for http URL: ${webhookUrl}`,
+      );
     }
   }
 }
@@ -105,4 +103,25 @@ export async function update(folderId: string): Promise<void> {
     console.error(`Failed to update cache for folder ${folderId}: ${error}`);
     throw error;
   }
+}
+
+/**
+ * フォルダツリーを再帰的に取得
+ */
+export async function getTree(
+  folderId: string,
+): Promise<DriveFile[]> {
+  const children = await getChildren(folderId, false);
+  const folders = children.filter((file) =>
+    file.mimeType === "application/vnd.google-apps.folder"
+  );
+
+  const allFiles: DriveFile[] = [...children];
+
+  for (const folder of folders) {
+    const subTree = await getTree(folder.id);
+    allFiles.push(...subTree);
+  }
+
+  return allFiles;
 }

@@ -29,8 +29,7 @@ function App(_handle: Handle) {
           folderId: UP_FOLDER_ID,
           name: "アップ用フォルダ",
           depth: 0,
-          webViewLink:
-            `https://drive.google.com/drive/folders/${UP_FOLDER_ID}`,
+          webViewLink: `https://drive.google.com/drive/folders/${UP_FOLDER_ID}`,
         }}
       />
       <Folder
@@ -38,8 +37,7 @@ function App(_handle: Handle) {
           folderId: DL_FOLDER_ID,
           name: "ダウンロード用フォルダ",
           depth: 0,
-          webViewLink:
-            `https://drive.google.com/drive/folders/${DL_FOLDER_ID}`,
+          webViewLink: `https://drive.google.com/drive/folders/${DL_FOLDER_ID}`,
         }}
       />
     </div>
