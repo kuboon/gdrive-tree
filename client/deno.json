@@ -1,8 +1,7 @@
 {
   "name": "client",
   "exports": {
-    ".": "./index.tsx",
-    "./index.html": "./index.html"
+    ".": "./index.tsx"
   },
   "compilerOptions": {
     "lib": ["dom", "dom.asynciterable", "dom.iterable", "es2024"]

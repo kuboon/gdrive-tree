@@ -28,10 +28,13 @@ async function clientServer() {
     const distPath = new URL("../dist", import.meta.url).pathname;
     const st = await Deno.stat(distPath);
     if (st.isDirectory) {
-      return serveStatic({ root: distPath, rewriteRequestPath(path) {
-        if (path === "/") return "/index.html";
-        return path;
-      }, });
+      return serveStatic({
+        root: distPath,
+        rewriteRequestPath(path) {
+          if (path === "/") return "/index.html";
+          return path;
+        },
+      });
     }
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) {

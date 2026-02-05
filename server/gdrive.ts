@@ -10,6 +10,50 @@ export interface DriveFile {
   iconLink: string;
 }
 
+// API Key による認証（オプション）
+const GOOGLE_KEY = Deno.env.get("GOOGLE_KEY");
+
+/**
+ * 認証ヘッダーを取得
+ * OAuth2 トークンを優先し、なければ API Key を使用
+ */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const accessToken = await getAccessToken();
+    return {
+      "Authorization": `Bearer ${accessToken}`,
+    };
+  } catch {
+    // OAuth2 トークンが取得できない場合は API Key にフォールバック
+    if (!GOOGLE_KEY) {
+      throw new Error(
+        "OAuth2 トークンも API Key も利用できません。環境変数を確認してください。",
+      );
+    }
+    return {};
+  }
+}
+
+/**
+ * APIリクエスト用のURLを構築
+ */
+async function buildApiUrl(
+  baseUrl: string,
+  params: URLSearchParams,
+): Promise<string> {
+  try {
+    await getAccessToken();
+    // OAuth2 を使用する場合は API Key は不要
+    return `${baseUrl}?${params.toString()}`;
+  } catch {
+    // API Key にフォールバック
+    if (GOOGLE_KEY) {
+      params.append("key", GOOGLE_KEY);
+    }
+    return `${baseUrl}?${params.toString()}`;
+  }
+}
+
 export async function driveFiles(
   folderId: string,
   refresh = false,
