@@ -1,8 +1,12 @@
 import { getAccessToken } from "./oauth.ts";
-import type { DriveFile, WatchChannel } from "./tree/types.ts";
+import type { DriveItem, WatchChannel } from "./tree/types.ts";
 
 // API Key による認証（オプション）
 const GOOGLE_KEY = Deno.env.get("GOOGLE_KEY");
+
+export function isFolder(file: { mimeType: string }): boolean {
+  return file.mimeType === "application/vnd.google-apps.folder";
+}
 
 /**
  * 認証ヘッダーを取得
@@ -47,7 +51,7 @@ async function buildApiUrl(
 
 export async function driveFiles(
   folderId: string,
-): Promise<DriveFile[]> {
+): Promise<DriveItem[]> {
   const FIXED_FIELDS =
     "files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink,parents)";
   const params = new URLSearchParams();
@@ -74,8 +78,9 @@ export async function driveFiles(
       `Google Drive API error: ${response.status} ${response.statusText} - ${errorText}`,
     );
   }
-  const json = await response.json() as { files: DriveFile[] };
-  return json.files.sort((a, b) => a.name.localeCompare(b.name));
+  const json = await response.json() as { files: DriveItem[] };
+  const files = json.files;
+  return files;
 }
 
 /**
@@ -84,7 +89,7 @@ export async function driveFiles(
 export async function getOrCreateFolder(
   parentId: string,
   folderName: string,
-): Promise<DriveFile> {
+): Promise<DriveItem> {
   // まず検索
   const params = new URLSearchParams();
   params.append("includeItemsFromAllDrives", "true");
@@ -104,7 +109,7 @@ export async function getOrCreateFolder(
   if (!searchResponse.ok) {
     throw new Error(`Search failed: ${searchResponse.statusText}`);
   }
-  const searchJson = await searchResponse.json() as { files: DriveFile[] };
+  const searchJson = await searchResponse.json() as { files: DriveItem[] };
 
   if (searchJson.files.length > 0) {
     return searchJson.files[0];
@@ -134,7 +139,7 @@ export async function getOrCreateFolder(
     console.error(`getOrCreateFolder(${parentId}, ${folderName}) failed.`);
     throw new Error(`Create folder failed: ${createResponse.statusText}`);
   }
-  return await createResponse.json() as DriveFile;
+  return await createResponse.json() as DriveItem;
 }
 
 /**
@@ -145,7 +150,7 @@ export async function moveFile(
   oldParentId: string,
   newParentId: string,
   newName?: string,
-): Promise<DriveFile> {
+): Promise<DriveItem> {
   const params = new URLSearchParams();
   params.append("supportsAllDrives", "true");
   params.append("addParents", newParentId);

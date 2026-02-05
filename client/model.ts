@@ -15,8 +15,9 @@ export interface DriveFile {
 
 interface ItemRegistryEntry {
   type: "folder" | "file";
-  element: HTMLElement | null;
   parentId?: string;
+  // folder の場合のみ使用
+  folderStateKey?: string;
 }
 
 type LoadingStatus = "idle" | "loading" | "success" | "error";
@@ -57,6 +58,16 @@ function triggerAllUpdates() {
   updateCallbacks.forEach((cb) => cb());
 }
 
+// Focus callback for View layer
+let focusCallback: ((id: string) => void) | null = null;
+
+export function registerFocusCallback(callback: (id: string) => void) {
+  focusCallback = callback;
+  return () => {
+    focusCallback = null;
+  };
+}
+
 export function getFolderState(folderId: string): FolderState {
   return globalModel.folders.get(folderId) ?? {
     expanded: false,
@@ -75,7 +86,6 @@ export type Msg =
     type: "RegisterItem";
     id: string;
     itemType: "folder" | "file";
-    element: HTMLElement | null;
     parentId?: string;
   }
   | { type: "UnregisterItem"; id: string }
@@ -101,8 +111,8 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
     case "RegisterItem": {
       model.itemRegistry.set(msg.id, {
         type: msg.itemType,
-        element: msg.element,
         parentId: msg.parentId,
+        folderStateKey: msg.itemType === "folder" ? msg.id : undefined,
       });
       return [null];
     }
@@ -121,11 +131,9 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
       const items = getAllVisibleItems();
       if (items.length === 0) return [null];
 
-      const currentIndex = items.findIndex(([id]) =>
-        id === model.focusedItemId
-      );
+      const currentIndex = items.findIndex((id) => id === model.focusedItemId);
       if (currentIndex > 0) {
-        const nextId = items[currentIndex - 1][0];
+        const nextId = items[currentIndex - 1];
         model.focusedItemId = nextId;
         return [() => Promise.resolve({ type: "SetFocus", id: nextId })];
       }
@@ -136,16 +144,14 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
       const items = getAllVisibleItems();
       if (items.length === 0) return [null];
 
-      const currentIndex = items.findIndex(([id]) =>
-        id === model.focusedItemId
-      );
+      const currentIndex = items.findIndex((id) => id === model.focusedItemId);
 
       if (currentIndex === -1 && items.length > 0) {
-        const nextId = items[0][0];
+        const nextId = items[0];
         model.focusedItemId = nextId;
         return [() => Promise.resolve({ type: "SetFocus", id: nextId })];
       } else if (currentIndex < items.length - 1) {
-        const nextId = items[currentIndex + 1][0];
+        const nextId = items[currentIndex + 1];
         model.focusedItemId = nextId;
         return [() => Promise.resolve({ type: "SetFocus", id: nextId })];
       }
@@ -271,34 +277,43 @@ function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
 // Helpers
 // ============================================================================
 
-function getAllVisibleItems(): Array<[string, ItemRegistryEntry]> {
-  const items = Array.from(globalModel.itemRegistry.entries())
-    .filter(([_, item]) => item.element !== null);
+// Model で管理する表示順序を構築
+function getAllVisibleItems(): string[] {
+  const result: string[] = [];
 
-  items.sort((a, b) => {
-    const [_, itemA] = a;
-    const [__, itemB] = b;
-    if (!itemA.element || !itemB.element) return 0;
+  // ルートフォルダを探す
+  const rootItems = Array.from(globalModel.itemRegistry.entries())
+    .filter(([_, item]) => !item.parentId)
+    .map(([id]) => id);
 
-    const position = itemA.element.compareDocumentPosition(itemB.element);
-    if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
-      return -1;
-    } else if (position & Node.DOCUMENT_POSITION_PRECEDING) {
-      return 1;
+  // 各ルートアイテムから再帰的に展開されたアイテムを収集
+  function collectVisibleChildren(itemId: string) {
+    result.push(itemId);
+
+    const item = globalModel.itemRegistry.get(itemId);
+    if (item?.type === "folder" && item.folderStateKey) {
+      const folderState = globalModel.folders.get(item.folderStateKey);
+      if (folderState?.expanded) {
+        // フォルダ内のアイテムを順番に収集
+        const children = folderState.files;
+        for (const child of children) {
+          if (globalModel.itemRegistry.has(child.id)) {
+            collectVisibleChildren(child.id);
+          }
+        }
+      }
     }
-    return 0;
-  });
-
-  return items;
-}
-
-function focusElement(id: string) {
-  const item = globalModel.itemRegistry.get(id);
-  if (item?.element) {
-    item.element.focus();
-    item.element.scrollIntoView({ block: "nearest" });
   }
+
+  for (const rootId of rootItems) {
+    collectVisibleChildren(rootId);
+  }
+
+  return result;
 }
+
+// Element の focus 管理は View 側で行う
+// Model は focusedItemId のみ管理
 
 async function fetchFolderContents(
   folderId: string,
@@ -318,6 +333,10 @@ async function fetchFolderContents(
 
 export { registerUpdateCallback };
 
+export function getFocusedItemId(): string | null {
+  return globalModel.focusedItemId;
+}
+
 // Dispatch function with side-effect handling
 export function dispatch(msg: Msg) {
   const [cmd] = update(msg);
@@ -331,9 +350,9 @@ export function dispatch(msg: Msg) {
     });
   }
 
-  // Focus management
-  if (msg.type === "SetFocus" && msg.id) {
-    focusElement(msg.id);
+  // Focus management - notify View layer
+  if (msg.type === "SetFocus" && msg.id && focusCallback) {
+    focusCallback(msg.id);
   }
 
   // Trigger all component updates

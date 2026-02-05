@@ -1,10 +1,11 @@
 import type { Context } from "@hono/hono";
-import { getOrCreateFolder, moveFile } from "./gdrive.ts";
+import { getOrCreateFolder, isFolder, moveFile } from "./gdrive.ts";
 import { getChildren, update } from "./tree/mod.ts";
+import type { DriveItem } from "./tree/types.ts";
 
 // フォルダIDを指定
-const UP_FOLDER_ID = "1QAArkDWkzjVBJtw6Uosq5Iki3NdgMZLh";
-const FOLDER_B_ID = "1PRWrByLt53bCQ5g1tbxKsqEzhKIpdsS7";
+export const UP_FOLDER_ID = "1QAArkDWkzjVBJtw6Uosq5Iki3NdgMZLh";
+const DL_FOLDER_ID = "1PRWrByLt53bCQ5g1tbxKsqEzhKIpdsS7";
 
 export interface MoveAllResult {
   status: "success" | "error";
@@ -14,12 +15,6 @@ export interface MoveAllResult {
   error?: string;
 }
 
-function isFolder(file: { mimeType: string }): boolean {
-  return file.mimeType === "application/vnd.google-apps.folder";
-}
-function isFile(file: { mimeType: string }): boolean {
-  return !isFolder(file);
-}
 /**
  * FOLDER_A 内の各サブフォルダにあるファイルを、
  * FOLDER_B 内の同名フォルダへ移動する
@@ -45,7 +40,7 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
       // 階層2のフォルダを取得と、targetL1の作成を並行実行
       const [foldersL2, targetL1] = await Promise.all([
         getChildren(folderL1.id).then((children) => children.filter(isFolder)),
-        getOrCreateFolder(FOLDER_B_ID, nameL1),
+        getOrCreateFolder(DL_FOLDER_ID, nameL1),
       ]);
 
       // L2フォルダを並行処理
@@ -69,7 +64,7 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
           // ファイル取得とtargetL3の作成を並行実行
           const [files, targetL3] = await Promise.all([
             getChildren(folderL3.id).then((children) =>
-              children.filter(isFile)
+              children.filter((x) => !isFolder(x))
             ),
             getOrCreateFolder(targetL2.id, nameL3),
           ]);
@@ -82,7 +77,7 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
             const newName = prefix + originalName;
 
             // 移動とリネームを1回のAPIコールで実行
-            const moved = await moveFile(
+            await moveFile(
               file.id,
               folderL3.id,
               targetL3.id,
@@ -91,11 +86,11 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
 
             processedCount++;
             addLog(
-              `Processed: ${newName}, ${JSON.stringify(moved)}`,
+              `Processed: ${newName}`,
             );
           }));
           if (files.length > 0) {
-            await update(folderL3.id);
+            await Promise.all([update(folderL3.id), update(targetL3.id)]);
           }
         }));
       }));
@@ -120,6 +115,42 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
       logs,
       error: error instanceof Error ? error.message : String(error),
     };
+  }
+}
+
+export async function doMove(
+  files: DriveItem[],
+  parents: DriveItem[],
+): Promise<void> {
+  if (parents.length !== 4) return;
+  if (parents[3].id !== UP_FOLDER_ID) return;
+  const folderNames = parents.slice(0, 3).map((f) => f.name);
+  const [nameL3, nameL2, nameL1] = folderNames;
+  const targetL1 = await getOrCreateFolder(DL_FOLDER_ID, nameL1);
+  const targetL2 = await getOrCreateFolder(targetL1.id, nameL2);
+  const targetL3 = await getOrCreateFolder(targetL2.id, nameL3);
+
+  const prefix = `${nameL1}-${nameL2}-${nameL3}-`;
+
+  // 各ファイルの処理を並行実行
+  await Promise.all(files.map(async (file) => {
+    const originalName = file.name;
+    const newName = prefix + originalName;
+
+    // 移動とリネームを1回のAPIコールで実行
+    await moveFile(
+      file.id,
+      parents[0].id,
+      targetL3.id,
+      newName,
+    );
+
+    console.log(
+      `Processed: ${newName}`,
+    );
+  }));
+  if (files.length > 0) {
+    await Promise.all([update(parents[0].id), update(targetL3.id)]);
   }
 }
 

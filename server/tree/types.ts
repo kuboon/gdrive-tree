@@ -1,4 +1,4 @@
-export interface DriveFile {
+export interface DriveItem {
   parents: string[];
   id: string;
   name: string;

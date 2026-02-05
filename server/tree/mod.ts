@@ -1,12 +1,14 @@
-import type { DriveFile } from "./types.ts";
+import type { DriveItem } from "./types.ts";
 import {
   deleteWatchChannel,
-  getCachedFiles,
+  getChildren as getCachedChildren,
+  getDriveItem,
   getWatchChannel,
-  saveCachedFiles,
+  saveChildren,
   saveWatchChannel,
 } from "./repo.ts";
-import { createWatch, driveFiles, stopWatch } from "../gdrive.ts";
+import { createWatch, driveFiles, isFolder, stopWatch } from "../gdrive.ts";
+import { doMove } from "../move.ts";
 
 /**
  * watch channel の有効期限のバッファ（ミリ秒）
@@ -21,20 +23,28 @@ const EXPIRATION_BUFFER = 60 * 60 * 1000;
 export async function getChildren(
   folderId: string,
   refresh = false,
-): Promise<DriveFile[]> {
+): Promise<DriveItem[]> {
   // 1. refresh == false かつキャッシュがあれば返す
   if (!refresh) {
-    const cached = await getCachedFiles(folderId);
+    const cached = await getCachedChildren(folderId);
     if (cached) {
-      return cached;
+      return cached.sort((a, b) =>
+        (isFolder(a) ? -3 : 0) + (isFolder(b) ? 3 : 0) +
+        a.name.localeCompare(b.name)
+      );
     }
   }
 
   // 2. gdrive.ts の driveFiles を呼び出して取得
   const files = await driveFiles(folderId);
+  files.sort((a, b) =>
+    (isFolder(a) ? -3 : 0) + (isFolder(b) ? 3 : 0) +
+    a.name.localeCompare(b.name)
+  );
 
   // 3. キャッシュに保存
-  await saveCachedFiles(folderId, files);
+  await saveChildren(folderId, files);
+  await processMove(folderId, files);
 
   // 4. 返す
   return files;
@@ -76,10 +86,6 @@ export async function ensureWatchChannel(
         console.error(`Failed to create watch channel: ${error}`);
         // watch channel の作成に失敗してもファイルリストの取得は続行
       }
-    } else {
-      console.log(
-        `Skipping watch channel creation for http URL: ${webhookUrl}`,
-      );
     }
   }
 }
@@ -96,7 +102,8 @@ export async function update(folderId: string): Promise<void> {
     const files = await driveFiles(folderId);
 
     // キャッシュを更新
-    await saveCachedFiles(folderId, files);
+    await saveChildren(folderId, files);
+    await processMove(folderId, files);
 
     console.log(`Updated cache for folder ${folderId}, ${files.length} files`);
   } catch (error) {
@@ -105,18 +112,39 @@ export async function update(folderId: string): Promise<void> {
   }
 }
 
+async function allParents(fileId: string): Promise<DriveItem[]> {
+  const item = await getDriveItem(fileId);
+  if (item && item.parents && item.parents.length > 0) {
+    const parent = item.parents[0];
+    const grandparents = await allParents(parent);
+    return [item, ...grandparents];
+  } else {
+    return [];
+  }
+}
+
+async function processMove(
+  folderId: string,
+  items: DriveItem[],
+): Promise<void> {
+  const files = items.filter((x) => !isFolder(x));
+  if (files.length === 0) return;
+  const parents = await allParents(folderId);
+  return doMove(files, parents);
+}
+
 /**
  * フォルダツリーを再帰的に取得
  */
 export async function getTree(
   folderId: string,
-): Promise<DriveFile[]> {
+): Promise<DriveItem[]> {
   const children = await getChildren(folderId, false);
   const folders = children.filter((file) =>
     file.mimeType === "application/vnd.google-apps.folder"
   );
 
-  const allFiles: DriveFile[] = [...children];
+  const allFiles: DriveItem[] = [...children];
 
   for (const folder of folders) {
     const subTree = await getTree(folder.id);
