@@ -23,7 +23,16 @@
     "default": {
       "net": true,
       "read": ["./dist"],
-      "env": ["GOOGLE_KEY"]
+      "env": {
+        "allow": [
+          "GOOGLE_DRIVE_ID",
+          "GOOGLE_KEY",
+          "GOOGLE_CLIENT_ID",
+          "GOOGLE_CLIENT_SECRET",
+          "GOOGLE_REFRESH_TOKEN"
+        ],
+        "ignore": true
+      }
     },
     "bundle": {
       "write": ["./dist"],
@@ -36,5 +45,5 @@
       ]
     }
   },
-  "unstable": ["bundle"]
+  "unstable": ["bundle", "kv"]
 }

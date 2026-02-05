@@ -1,11 +1,10 @@
 import type { Context } from "@hono/hono";
 import {
-  getFiles,
-  getFolders,
   getOrCreateFolder,
   moveFile,
   renameFile,
 } from "./gdrive.ts";
+import { getChildren } from "./tree/mod.ts";
 
 // フォルダIDを指定
 const FOLDER_A_ID = "1QAArkDWkzjVBJtw6Uosq5Iki3NdgMZLh";
@@ -18,6 +17,13 @@ export interface MoveAllResult {
   error?: string;
 }
 
+
+function isFolder(file: { mimeType: string }): boolean {
+  return file.mimeType === "application/vnd.google-apps.folder";
+}
+function isFile(file: { mimeType: string }): boolean {
+  return !isFolder(file);
+}
 /**
  * FOLDER_A 内の各サブフォルダにあるファイルを、
  * FOLDER_B 内の同名フォルダへ移動する
@@ -28,7 +34,7 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
 
   try {
     // 階層1のフォルダをすべて取得
-    const foldersL1 = await getFolders(FOLDER_A_ID);
+    const foldersL1 = (await getChildren(FOLDER_A_ID)).filter(isFolder);
     logs.push(`Found ${foldersL1.length} L1 folders`);
 
     // L1フォルダを並行処理
@@ -38,7 +44,7 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
 
       // 階層2のフォルダを取得と、targetL1の作成を並行実行
       const [foldersL2, targetL1] = await Promise.all([
-        getFolders(folderL1.id),
+        getChildren(folderL1.id).then(children => children.filter(isFolder)),
         getOrCreateFolder(FOLDER_B_ID, nameL1),
       ]);
 
@@ -48,7 +54,7 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
 
         // 階層3のフォルダを取得と、targetL2の作成を並行実行
         const [foldersL3, targetL2] = await Promise.all([
-          getFolders(folderL2.id),
+          getChildren(folderL2.id).then(children => children.filter(isFolder)),
           getOrCreateFolder(targetL1.id, nameL2),
         ]);
 
@@ -58,7 +64,7 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
 
           // ファイル取得とtargetL3の作成を並行実行
           const [files, targetL3] = await Promise.all([
-            getFiles(folderL3.id),
+            getChildren(folderL3.id).then(children => children.filter(isFile)),
             getOrCreateFolder(targetL2.id, nameL3),
           ]);
 

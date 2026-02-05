@@ -2,7 +2,8 @@ import "./style.css";
 import { Folder } from "./Folder.tsx";
 import { createRoot, type Handle } from "@remix-run/component";
 
-const ROOT_FOLDER_ID = "1QAArkDWkzjVBJtw6Uosq5Iki3NdgMZLh";
+const UP_FOLDER_ID = "1QAArkDWkzjVBJtw6Uosq5Iki3NdgMZLh";
+const DL_FOLDER_ID = "1PRWrByLt53bCQ5g1tbxKsqEzhKIpdsS7";
 
 // Main App component
 function App(_handle: Handle) {
@@ -25,11 +26,20 @@ function App(_handle: Handle) {
       </h1>
       <Folder
         setup={{
-          folderId: ROOT_FOLDER_ID,
+          folderId: UP_FOLDER_ID,
           name: "アップ用フォルダ",
-          depth: 3,
+          depth: 0,
           webViewLink:
-            `https://drive.google.com/drive/folders/${ROOT_FOLDER_ID}`,
+            `https://drive.google.com/drive/folders/${UP_FOLDER_ID}`,
+        }}
+      />
+      <Folder
+        setup={{
+          folderId: DL_FOLDER_ID,
+          name: "ダウンロード用フォルダ",
+          depth: 0,
+          webViewLink:
+            `https://drive.google.com/drive/folders/${DL_FOLDER_ID}`,
         }}
       />
     </div>

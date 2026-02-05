@@ -1,14 +1,5 @@
 import { getAccessToken } from "./oauth.ts";
-
-export interface DriveFile {
-  parents: string[];
-  id: string;
-  name: string;
-  mimeType: string;
-  modifiedTime: string;
-  webViewLink: string;
-  iconLink: string;
-}
+import type { DriveFile, WatchChannel } from "./tree/types.ts";
 
 // API Key による認証（オプション）
 const GOOGLE_KEY = Deno.env.get("GOOGLE_KEY");
@@ -56,14 +47,12 @@ async function buildApiUrl(
 
 export async function driveFiles(
   folderId: string,
-  refresh = false,
 ): Promise<DriveFile[]> {
   const FIXED_FIELDS =
     "files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink,parents)";
   const params = new URLSearchParams();
   params.append("includeItemsFromAllDrives", "true");
   params.append("supportsAllDrives", "true");
-
   params.append("orderBy", "modifiedTime desc");
   params.append("pageSize", "50");
 
@@ -78,7 +67,7 @@ export async function driveFiles(
   );
   const headers = await getAuthHeaders();
 
-  const response = await cachedFetch(url, refresh, headers);
+  const response = await fetch(url, { headers });
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
@@ -87,84 +76,6 @@ export async function driveFiles(
   }
   const json = await response.json() as { files: DriveFile[] };
   return json.files.sort((a, b) => a.name.localeCompare(b.name));
-}
-async function cachedFetch(
-  url: string,
-  refresh: boolean,
-  headers: Record<string, string>,
-) {
-  const cache = await caches.open("gdrive-folder");
-  if (refresh) {
-    cache.delete(url);
-  } else {
-    const cachedResponse = await cache.match(url);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-  }
-  const res = await fetch(url, { headers });
-  cache.put(url, res.clone());
-  return res;
-}
-
-/**
- * フォルダ内のサブフォルダを取得
- */
-export async function getFolders(folderId: string): Promise<DriveFile[]> {
-  const params = new URLSearchParams();
-  params.append("includeItemsFromAllDrives", "true");
-  params.append("supportsAllDrives", "true");
-  params.append("pageSize", "100");
-  params.append("fields", "files(id,name,mimeType,parents)");
-  const query =
-    `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-  params.append("q", query);
-
-  const url = await buildApiUrl(
-    "https://www.googleapis.com/drive/v3/files",
-    params,
-  );
-  const headers = await getAuthHeaders();
-
-  const response = await fetch(url, { headers });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Google Drive API error: ${response.status} ${response.statusText} - ${errorText}`,
-    );
-  }
-  const json = await response.json() as { files: DriveFile[] };
-  return json.files;
-}
-
-/**
- * フォルダ内のファイルを取得（フォルダは除く）
- */
-export async function getFiles(folderId: string): Promise<DriveFile[]> {
-  const params = new URLSearchParams();
-  params.append("includeItemsFromAllDrives", "true");
-  params.append("supportsAllDrives", "true");
-  params.append("pageSize", "1000");
-  params.append("fields", "files(id,name,mimeType,parents)");
-  const query =
-    `'${folderId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`;
-  params.append("q", query);
-
-  const url = await buildApiUrl(
-    "https://www.googleapis.com/drive/v3/files",
-    params,
-  );
-  const headers = await getAuthHeaders();
-
-  const response = await fetch(url, { headers });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Google Drive API error: ${response.status} ${response.statusText} - ${errorText}`,
-    );
-  }
-  const json = await response.json() as { files: DriveFile[] };
-  return json.files;
 }
 
 /**
@@ -276,5 +187,76 @@ export async function moveFile(
   });
   if (!response.ok) {
     throw new Error(`Move failed: ${response.statusText}`);
+  }
+}
+
+/**
+ * フォルダの変更を監視する watch channel を作成
+ * https://developers.google.com/workspace/drive/api/reference/rest/v3/files/watch
+ */
+export async function createWatch(
+  folderId: string,
+  webhookUrl: string,
+): Promise<WatchChannel> {
+  const params = new URLSearchParams();
+  params.append("supportsAllDrives", "true");
+  params.append("includeItemsFromAllDrives", "true");
+
+  const url = await buildApiUrl(
+    `https://www.googleapis.com/drive/v3/files/${folderId}/watch`,
+    params,
+  );
+  const headers = await getAuthHeaders();
+
+  const channelId = crypto.randomUUID();
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: channelId,
+      type: "web_hook",
+      address: webhookUrl,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Watch failed: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
+
+  const result = await response.json() as {
+    id: string;
+    resourceId: string;
+    expiration: string;
+  };
+
+  return {
+    id: result.id,
+    resourceId: result.resourceId,
+    expiration: parseInt(result.expiration),
+  };
+}
+
+/**
+ * watch channel を停止
+ */
+export async function stopWatch(channel: WatchChannel): Promise<void> {
+  const url = "https://www.googleapis.com/drive/v3/channels/stop";
+  const headers = await getAuthHeaders();
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: channel.id,
+      resourceId: channel.resourceId,
+    }),
+  });
+
+  if (!response.ok && response.status !== 404) {
+    // 404 は channel が既に存在しない場合なので無視
+    throw new Error(`Stop watch failed: ${response.statusText}`);
   }
 }

@@ -1,5 +1,9 @@
 import type { Handle } from "@remix-run/component";
 
+// ============================================================================
+// Types
+// ============================================================================
+
 export interface DriveFile {
   id: string;
   name: string;
@@ -11,44 +15,235 @@ export interface DriveFile {
   parents?: string[];
 }
 
-// Global state for keyboard navigation
-let focusedItemId: string | null = null;
-const itemRegistry = new Map<string, {
+interface ItemRegistryEntry {
   type: "folder" | "file";
   element: HTMLElement | null;
-  toggleExpand?: () => void;
-  isExpanded?: () => boolean;
   parentId?: string;
-}>();
-
-export function registerItem(
-  id: string,
-  type: "folder" | "file",
-  element: HTMLElement | null,
-  toggleExpand?: () => void,
-  isExpanded?: () => boolean,
-  parentId?: string,
-) {
-  itemRegistry.set(id, { type, element, toggleExpand, isExpanded, parentId });
 }
 
-export function unregisterItem(id: string) {
-  itemRegistry.delete(id);
+type LoadingStatus = "idle" | "loading" | "success" | "error";
+
+interface FolderState {
+  expanded: boolean;
+  files: DriveFile[];
+  status: LoadingStatus;
+  error: string | null;
 }
 
-export function setFocusedItem(id: string | null) {
-  focusedItemId = id;
+// ============================================================================
+// Model (Global State)
+// ============================================================================
+
+interface Model {
+  focusedItemId: string | null;
+  itemRegistry: Map<string, ItemRegistryEntry>;
+  folders: Map<string, FolderState>;
 }
 
-export function getFocusedItemId() {
-  return focusedItemId;
+// Global model instance shared across all components
+const globalModel: Model = {
+  focusedItemId: null,
+  itemRegistry: new Map(),
+  folders: new Map(),
+};
+
+// Store all update callbacks from all components
+const updateCallbacks = new Set<() => void>();
+
+function registerUpdateCallback(callback: () => void) {
+  updateCallbacks.add(callback);
+  return () => updateCallbacks.delete(callback);
 }
 
-function getAllVisibleItems() {
-  const items = Array.from(itemRegistry.entries())
+function triggerAllUpdates() {
+  updateCallbacks.forEach(cb => cb());
+}
+
+function getFolderState(model: Model, folderId: string): FolderState {
+  return model.folders.get(folderId) ?? {
+    expanded: false,
+    files: [],
+    status: "idle",
+    error: null,
+  };
+}
+
+// ============================================================================
+// Msg
+// ============================================================================
+
+type Msg =
+  | { type: "RegisterItem"; id: string; itemType: "folder" | "file"; element: HTMLElement | null; parentId?: string }
+  | { type: "UnregisterItem"; id: string }
+  | { type: "SetFocus"; id: string | null }
+  | { type: "NavigateUp" }
+  | { type: "NavigateDown" }
+  | { type: "NavigateLeft" }
+  | { type: "NavigateRight" }
+  | { type: "ToggleFolder"; folderId: string }
+  | { type: "LoadFolderStart"; folderId: string }
+  | { type: "LoadFolderSuccess"; folderId: string; files: DriveFile[] }
+  | { type: "LoadFolderError"; folderId: string; error: string }
+  | { type: "RefreshFolder"; folderId: string };
+
+// ============================================================================
+// Update
+// ============================================================================
+
+function update(msg: Msg): [(() => Promise<Msg | null>) | null] {
+  const model = globalModel;
+  
+  switch (msg.type) {
+    case "RegisterItem": {
+      model.itemRegistry.set(msg.id, {
+        type: msg.itemType,
+        element: msg.element,
+        parentId: msg.parentId,
+      });
+      return [null];
+    }
+
+    case "UnregisterItem": {
+      model.itemRegistry.delete(msg.id);
+      return [null];
+    }
+
+    case "SetFocus": {
+      model.focusedItemId = msg.id;
+      return [null];
+    }
+
+    case "NavigateUp": {
+      const items = getAllVisibleItems();
+      if (items.length === 0) return [null];
+
+      const currentIndex = items.findIndex(([id]) => id === model.focusedItemId);
+      if (currentIndex > 0) {
+        const nextId = items[currentIndex - 1][0];
+        model.focusedItemId = nextId;
+        return [() => Promise.resolve({ type: "SetFocus", id: nextId })];
+      }
+      return [null];
+    }
+
+    case "NavigateDown": {
+      const items = getAllVisibleItems();
+      if (items.length === 0) return [null];
+
+      const currentIndex = items.findIndex(([id]) => id === model.focusedItemId);
+      
+      if (currentIndex === -1 && items.length > 0) {
+        const nextId = items[0][0];
+        model.focusedItemId = nextId;
+        return [() => Promise.resolve({ type: "SetFocus", id: nextId })];
+      } else if (currentIndex < items.length - 1) {
+        const nextId = items[currentIndex + 1][0];
+        model.focusedItemId = nextId;
+        return [() => Promise.resolve({ type: "SetFocus", id: nextId })];
+      }
+      return [null];
+    }
+
+    case "NavigateRight": {
+      if (!model.focusedItemId) return [null];
+      const item = model.itemRegistry.get(model.focusedItemId);
+      if (item?.type === "folder") {
+        const folderState = getFolderState(model, model.focusedItemId);
+        if (!folderState.expanded) {
+          return update({ type: "ToggleFolder", folderId: model.focusedItemId });
+        }
+      }
+      return [null];
+    }
+
+    case "NavigateLeft": {
+      if (!model.focusedItemId) return [null];
+      const item = model.itemRegistry.get(model.focusedItemId);
+      const { parentId } = item || {};
+      
+      if (item?.type === "folder") {
+        const folderState = getFolderState(model, model.focusedItemId);
+        if (folderState.expanded) {
+          return update({ type: "ToggleFolder", folderId: model.focusedItemId });
+        } else if (parentId) {
+          model.focusedItemId = parentId;
+          return [() => Promise.resolve({ type: "SetFocus", id: parentId })];
+        }
+      } else if (item?.type === "file" && parentId) {
+        model.focusedItemId = parentId;
+        return [() => Promise.resolve({ type: "SetFocus", id: parentId })];
+      }
+      return [null];
+    }
+
+    case "ToggleFolder": {
+      const folderState = getFolderState(model, msg.folderId);
+      const newExpanded = !folderState.expanded;
+      
+      model.folders.set(msg.folderId, { ...folderState, expanded: newExpanded });
+      
+      if (newExpanded && folderState.files.length === 0 && folderState.status === "idle") {
+        return update({ type: "LoadFolderStart", folderId: msg.folderId });
+      }
+      
+      return [null];
+    }
+
+    case "LoadFolderStart": {
+      const folderState = getFolderState(model, msg.folderId);
+      model.folders.set(msg.folderId, { ...folderState, status: "loading", error: null });
+      
+      const cmd = async (): Promise<Msg | null> => {
+        try {
+          const files = await fetchFolderContents(msg.folderId, false);
+          return { type: "LoadFolderSuccess", folderId: msg.folderId, files };
+        } catch (e) {
+          const error = e instanceof Error ? e.message : "Unknown error";
+          return { type: "LoadFolderError", folderId: msg.folderId, error };
+        }
+      };
+      
+      return [cmd];
+    }
+
+    case "LoadFolderSuccess": {
+      const folderState = getFolderState(model, msg.folderId);
+      model.folders.set(msg.folderId, {
+        ...folderState,
+        files: msg.files,
+        status: "success",
+        error: null,
+      });
+      return [null];
+    }
+
+    case "LoadFolderError": {
+      const folderState = getFolderState(model, msg.folderId);
+      model.folders.set(msg.folderId, {
+        ...folderState,
+        status: "error",
+        error: msg.error,
+      });
+      return [null];
+    }
+
+    case "RefreshFolder": {
+      return update({ type: "LoadFolderStart", folderId: msg.folderId });
+    }
+
+    default:
+      return [null];
+  }
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function getAllVisibleItems(): Array<[string, ItemRegistryEntry]> {
+  const items = Array.from(globalModel.itemRegistry.entries())
     .filter(([_, item]) => item.element !== null);
 
-  // Sort by DOM position instead of registration order
   items.sort((a, b) => {
     const [_, itemA] = a;
     const [__, itemB] = b;
@@ -56,9 +251,9 @@ function getAllVisibleItems() {
 
     const position = itemA.element.compareDocumentPosition(itemB.element);
     if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
-      return -1; // itemA comes before itemB
+      return -1;
     } else if (position & Node.DOCUMENT_POSITION_PRECEDING) {
-      return 1; // itemB comes before itemA
+      return 1;
     }
     return 0;
   });
@@ -66,71 +261,14 @@ function getAllVisibleItems() {
   return items;
 }
 
-function focusItem(id: string) {
-  const item = itemRegistry.get(id);
+function focusElement(id: string) {
+  const item = globalModel.itemRegistry.get(id);
   if (item?.element) {
     item.element.focus();
     item.element.scrollIntoView({ block: "nearest" });
-    setFocusedItem(id);
   }
 }
 
-function navigateUp() {
-  const items = getAllVisibleItems();
-  if (items.length === 0) return;
-
-  const currentIndex = items.findIndex(([id]) => id === focusedItemId);
-  if (currentIndex > 0) {
-    focusItem(items[currentIndex - 1][0]);
-  }
-}
-
-function navigateDown() {
-  const items = getAllVisibleItems();
-  if (items.length === 0) return;
-
-  const currentIndex = items.findIndex(([id]) => id === focusedItemId);
-
-  if (currentIndex === -1 && items.length > 0) {
-    // No item focused, focus the first one
-    focusItem(items[0][0]);
-  } else if (currentIndex < items.length - 1) {
-    // Move to next item (which is the first child if current is expanded folder)
-    focusItem(items[currentIndex + 1][0]);
-  }
-}
-
-function navigateRight() {
-  if (!focusedItemId) return;
-  const item = itemRegistry.get(focusedItemId);
-  if (item?.toggleExpand && item.type === "folder") {
-    const isExpanded = item.isExpanded?.();
-    if (!isExpanded) {
-      item.toggleExpand();
-    }
-  }
-}
-
-function navigateLeft() {
-  if (!focusedItemId) return;
-  const item = itemRegistry.get(focusedItemId);
-
-  if (item?.type === "folder" && item.toggleExpand) {
-    const isExpanded = item.isExpanded?.();
-    if (isExpanded) {
-      // If folder is expanded, collapse it
-      item.toggleExpand();
-    } else if (item.parentId) {
-      // If folder is already collapsed, move to parent
-      focusItem(item.parentId);
-    }
-  } else if (item?.type === "file" && item.parentId) {
-    // If it's a file, move to parent folder
-    focusItem(item.parentId);
-  }
-}
-
-// Fetch folder contents from the server API
 async function fetchFolderContents(
   folderId: string,
   refresh = false,
@@ -143,7 +281,6 @@ async function fetchFolderContents(
   return await response.json();
 }
 
-// Helper function to format file size
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -153,53 +290,52 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-// FileItem component with keyboard navigation support
+// ============================================================================
+// View - FileItem
+// ============================================================================
+
 function FileItem(
   _handle: Handle,
   setup: {
     file: DriveFile;
     depth: number;
     parentId?: string;
+    dispatch: (msg: Msg) => void;
   },
 ) {
-  let _fileElement: HTMLElement | null = null;
-
   const handleKeyDown = (e: KeyboardEvent) => {
     switch (e.key) {
       case "ArrowUp":
         e.preventDefault();
-        navigateUp();
+        setup.dispatch({ type: "NavigateUp" });
         break;
       case "ArrowDown":
         e.preventDefault();
-        navigateDown();
+        setup.dispatch({ type: "NavigateDown" });
         break;
       case "Enter":
         e.preventDefault();
-        // Open file in new tab
         globalThis.open(setup.file.webViewLink, "_blank");
         break;
     }
   };
 
   const handleFocus = () => {
-    setFocusedItem(setup.file.id);
+    setup.dispatch({ type: "SetFocus", id: setup.file.id });
   };
 
   return () => (
     <div
       connect={(el, signal) => {
-        _fileElement = el;
-        registerItem(
-          setup.file.id,
-          "file",
-          el,
-          undefined,
-          undefined,
-          setup.parentId,
-        );
+        setup.dispatch({
+          type: "RegisterItem",
+          id: setup.file.id,
+          itemType: "file",
+          element: el,
+          parentId: setup.parentId,
+        });
         signal.addEventListener("abort", () => {
-          unregisterItem(setup.file.id);
+          setup.dispatch({ type: "UnregisterItem", id: setup.file.id });
         });
       }}
       tabIndex={0}
@@ -261,6 +397,9 @@ function FileItem(
 }
 
 // Folder component: displays a folder and its contents
+// View - Folder
+// ============================================================================
+
 export function Folder(
   handle: Handle,
   setup: {
@@ -271,73 +410,91 @@ export function Folder(
     parentId?: string;
   },
 ) {
-  let expanded = false;
-  let loading = false;
-  let error: string | null = null;
-  let files: DriveFile[] = [];
-
-  const loadContents = async (refresh = false) => {
-    loading = true;
-    error = null;
-    handle.update();
-
-    try {
-      files = await fetchFolderContents(setup.folderId, refresh);
-      loading = false;
-      handle.update();
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Unknown error";
-      loading = false;
-      handle.update();
+  // Register this component's update callback
+  let unregister: (() => void) | null = null;
+  
+  const initialize = () => {
+    if (!unregister) {
+      unregister = registerUpdateCallback(() => handle.update());
+    }
+  };
+  
+  const cleanup = () => {
+    if (unregister) {
+      unregister();
+      unregister = null;
     }
   };
 
-  const toggleExpand = () => {
-    expanded = !expanded;
-    if (expanded && files.length === 0) {
-      loadContents();
-    } else {
-      handle.update();
+  // Dispatch function with side-effect handling
+  const dispatch = (msg: Msg) => {
+    const [cmd] = update(msg);
+    
+    // Handle side effects
+    if (cmd) {
+      cmd().then((resultMsg) => {
+        if (resultMsg) {
+          dispatch(resultMsg);
+        }
+      });
     }
+    
+    // Focus management
+    if (msg.type === "SetFocus" && msg.id) {
+      focusElement(msg.id);
+    }
+    
+    // Trigger all component updates
+    triggerAllUpdates();
   };
+  
+  initialize();
 
-  const refresh = () => {
-    loadContents(true);
-  };
-
-  const isExpanded = () => expanded;
-
+  // Keyboard event handlers
   const handleKeyDown = (e: KeyboardEvent) => {
     switch (e.key) {
       case "ArrowUp":
         e.preventDefault();
-        navigateUp();
+        dispatch({ type: "NavigateUp" });
         break;
       case "ArrowDown":
         e.preventDefault();
-        navigateDown();
+        dispatch({ type: "NavigateDown" });
         break;
       case "ArrowRight":
         e.preventDefault();
-        navigateRight();
+        dispatch({ type: "NavigateRight" });
         break;
       case "ArrowLeft":
         e.preventDefault();
-        navigateLeft();
+        dispatch({ type: "NavigateLeft" });
         break;
       case "Enter":
       case " ":
         e.preventDefault();
-        toggleExpand();
+        dispatch({ type: "ToggleFolder", folderId: setup.folderId });
         break;
     }
   };
 
   const handleFocus = () => {
-    setFocusedItem(setup.folderId);
+    dispatch({ type: "SetFocus", id: setup.folderId });
   };
 
+  const handleToggle = () => {
+    dispatch({ type: "ToggleFolder", folderId: setup.folderId });
+  };
+
+  const handleRefresh = () => {
+    dispatch({ type: "RefreshFolder", folderId: setup.folderId });
+  };
+
+  // View render function
   return () => {
+    const folderState = getFolderState(globalModel, setup.folderId);
+    const { expanded, files, status, error } = folderState;
+    const loading = status === "loading";
+
     const folders = files.filter((f) =>
       f.mimeType === "application/vnd.google-apps.folder"
     );
@@ -354,16 +511,15 @@ export function Folder(
       >
         <div
           connect={(el, signal) => {
-            registerItem(
-              setup.folderId,
-              "folder",
-              el,
-              toggleExpand,
-              isExpanded,
-              setup.parentId,
-            );
+            dispatch({
+              type: "RegisterItem",
+              id: setup.folderId,
+              itemType: "folder",
+              element: el,
+              parentId: setup.parentId,
+            });
             signal.addEventListener("abort", () => {
-              unregisterItem(setup.folderId);
+              dispatch({ type: "UnregisterItem", id: setup.folderId });
             });
           }}
           tabIndex={0}
@@ -388,7 +544,7 @@ export function Folder(
         >
           <button
             type="button"
-            on={{ click: toggleExpand }}
+            on={{ click: handleToggle }}
             css={{
               border: "none",
               background: "none",
@@ -419,7 +575,7 @@ export function Folder(
           </a>
           <button
             type="button"
-            on={{ click: refresh }}
+            on={{ click: handleRefresh }}
             disabled={loading}
             css={{
               border: "none",
@@ -490,6 +646,7 @@ export function Folder(
                       file,
                       depth: setup.depth + 1,
                       parentId: setup.folderId,
+                      dispatch
                     }}
                   />
                 ))}
