@@ -27,12 +27,7 @@ export async function getChildren(
   // 1. refresh == false かつキャッシュがあれば返す
   if (!refresh) {
     const cached = await getCachedChildren(folderId);
-    if (cached) {
-      return cached.sort((a, b) =>
-        (isFolder(a) ? -3 : 0) + (isFolder(b) ? 3 : 0) +
-        a.name.localeCompare(b.name)
-      );
-    }
+    if (cached) return cached;
   }
 
   // 2. gdrive.ts の driveFiles を呼び出して取得

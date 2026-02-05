@@ -79,6 +79,7 @@ export function createTreeRouter(): Hono {
       const folders = children?.filter(isFolder) || [];
       if (folders.length === 0) return c.json([]);
 
+      const origin = new URL(c.req.url).origin;
       // 再帰的にフォルダを収集（並列数を制限）
       const concurrencyLimit = 3; // 並列実行数を制限
       const queue = [...folders];
@@ -89,6 +90,10 @@ export function createTreeRouter(): Hono {
         await Promise.all(
           batch.map(async (file) => {
             ret.push(file);
+            // watch channel の確認と作成・更新
+            const webhookUrl = `${origin}/api/watch/${file.id}`;
+            await ensureWatchChannel(webhookUrl, file.id);
+
             const subChildren = await getChildren(file.id);
             const folders = subChildren?.filter(isFolder) || [];
             if (folders.length > 0) {

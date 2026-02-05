@@ -1,7 +1,7 @@
 import "./style.css";
 import { Folder } from "./Folder.tsx";
 import { createRoot, type Handle } from "@remix-run/component";
-import { dispatch } from "./model.ts";
+// import { dispatch } from "./model.ts";
 
 const UP_FOLDER_ID = "1QAArkDWkzjVBJtw6Uosq5Iki3NdgMZLh";
 const DL_FOLDER_ID = "1PRWrByLt53bCQ5g1tbxKsqEzhKIpdsS7";
@@ -50,9 +50,9 @@ const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(<App />);
 
-  // 初期化時に両方のフォルダツリーをロード
-  dispatch({ type: "InitTreeStart", rootFolderId: UP_FOLDER_ID });
-  dispatch({ type: "InitTreeStart", rootFolderId: DL_FOLDER_ID });
+  // // 初期化時に両方のフォルダツリーをロード
+  // dispatch({ type: "InitTreeStart", rootFolderId: UP_FOLDER_ID });
+  // dispatch({ type: "InitTreeStart", rootFolderId: DL_FOLDER_ID });
 } else {
   console.error("Root element not found");
 }
