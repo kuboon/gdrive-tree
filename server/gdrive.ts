@@ -204,6 +204,7 @@ export async function createWatch(
       id: channelId,
       type: "web_hook",
       address: webhookUrl,
+      expiration: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7日後
     }),
   });
 
@@ -219,6 +220,7 @@ export async function createWatch(
     resourceId: string;
     expiration: string;
   };
+  console.log(`Created watch channel: ${JSON.stringify(result)}`);
 
   return {
     id: result.id,

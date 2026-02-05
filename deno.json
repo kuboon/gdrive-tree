@@ -45,5 +45,12 @@
       ]
     }
   },
-  "unstable": ["bundle", "kv"]
+  "unstable": [
+    "bundle",
+    "kv"
+  ],
+  "deploy": {
+    "org": "kuboon-tokyo",
+    "app": "gdrive-tree"
+  }
 }
