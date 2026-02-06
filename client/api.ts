@@ -1,7 +1,7 @@
 import type { DriveFile } from "./model.ts";
 
 // const basePath = "https://gdrive-tree.kuboon-tokyo.deno.net"
-const basePath = "/";
+const basePath = "";
 
 export async function fetchFolderContents(
   folderId: string,
