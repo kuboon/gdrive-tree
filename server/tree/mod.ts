@@ -7,7 +7,13 @@ import {
   saveChildren,
   saveWatchChannel,
 } from "./repo.ts";
-import { createWatch, driveFiles, getOrCreateFolder as getOrCreateFolderInDrive, isFolder, stopWatch } from "../gdrive.ts";
+import {
+  createWatch,
+  driveFiles,
+  getOrCreateFolder as getOrCreateFolderInDrive,
+  isFolder,
+  stopWatch,
+} from "../gdrive.ts";
 import { doMove } from "../move.ts";
 
 /**

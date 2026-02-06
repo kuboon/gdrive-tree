@@ -1,4 +1,4 @@
-import { trashFile, isFolder } from "./gdrive.ts";
+import { isFolder, trashFile } from "./gdrive.ts";
 import { getChildren } from "./tree/mod.ts";
 
 // move.ts の DL_FOLDER_ID を使用

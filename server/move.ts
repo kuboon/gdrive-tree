@@ -149,7 +149,10 @@ export async function doMove(
     );
   }));
   if (items.length > 0) {
-    await Promise.all([getChildren(parentId, true), getChildren(targetL3.id, true)]);
+    await Promise.all([
+      getChildren(parentId, true),
+      getChildren(targetL3.id, true),
+    ]);
   }
 }
 
