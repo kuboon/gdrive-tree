@@ -1,7 +1,9 @@
 import "./style.css";
+import "./trace.ts";
 import { Folder } from "./Folder.tsx";
-import { createRoot, type Handle } from "@remix-run/component";
 import { dispatch } from "./model.ts";
+
+import { createRoot, type Handle } from "@remix-run/component";
 
 const UP_FOLDER_ID = "1QAArkDWkzjVBJtw6Uosq5Iki3NdgMZLh";
 const DL_FOLDER_ID = "1PRWrByLt53bCQ5g1tbxKsqEzhKIpdsS7";
