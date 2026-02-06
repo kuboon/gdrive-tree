@@ -18,6 +18,7 @@ export interface RemoveEmptyResult {
  */
 async function removeEmptyFoldersRecursive(
   folderId: string,
+  _name: string,
   addLog: (message: string) => void,
 ): Promise<[number, boolean]> {
   let deletedCount = 0;
@@ -32,7 +33,9 @@ async function removeEmptyFoldersRecursive(
   // 各サブフォルダを再帰的に処理
   let deletedChildren = 0;
   const results = await Promise.all(
-    folders.map((folder) => removeEmptyFoldersRecursive(folder.id, addLog)),
+    folders.map((folder) =>
+      removeEmptyFoldersRecursive(folder.id, folder.name, addLog)
+    ),
   );
   for (const [deleted, deletedSelf] of results) {
     deletedCount += deleted;
@@ -43,7 +46,7 @@ async function removeEmptyFoldersRecursive(
   if (children.length === deletedChildren) {
     try {
       await trashFile(folderId);
-      addLog(`Deleted empty folder: ${folderId}`);
+      addLog(`Deleted empty folder: ${folderId} ${_name}`);
       deletedCount++;
       deleteSelf = true;
     } catch (error) {
@@ -51,7 +54,7 @@ async function removeEmptyFoldersRecursive(
       if (errorMsg.includes("Not Found")) {
         deleteSelf = true;
       }
-      addLog(`Failed to delete folder ${folderId}: ${errorMsg}`);
+      addLog(`Failed to delete folder ${folderId} ${_name}: ${errorMsg}`);
     }
   }
 
@@ -80,7 +83,11 @@ export async function removeAllEmptyFolders(): Promise<RemoveEmptyResult> {
 
     // 各トップレベルフォルダを処理
     for (const folder of folders) {
-      const [deleted, _] = await removeEmptyFoldersRecursive(folder.id, addLog);
+      const [deleted, _] = await removeEmptyFoldersRecursive(
+        folder.id,
+        folder.name,
+        addLog,
+      );
       totalDeleted += deleted;
     }
 

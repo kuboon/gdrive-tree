@@ -35,61 +35,24 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
 
     // L1フォルダを並行処理
     await Promise.all(foldersL1.map(async (folderL1) => {
-      const nameL1 = folderL1.name;
-
-      // 階層2のフォルダを取得と、targetL1の作成を並行実行
-      const [foldersL2, targetL1] = await Promise.all([
-        getChildren(folderL1.id).then((children) => children.filter(isFolder)),
-        getOrCreateFolder(DL_FOLDER_ID, nameL1),
-      ]);
-
-      // L2フォルダを並行処理
+      // 階層2のフォルダを取得
+      const foldersL2 = (await getChildren(folderL1.id)).filter(isFolder);
       await Promise.all(foldersL2.map(async (folderL2) => {
-        const nameL2 = folderL2.name;
-
-        // 階層3のフォルダを取得と、targetL2の作成を並行実行
-        const [foldersL3, targetL2] = await Promise.all([
-          getChildren(folderL2.id).then((children) =>
-            children.filter(isFolder)
-          ),
-          getOrCreateFolder(targetL1.id, nameL2),
-        ]);
-
-        // L3フォルダを並行処理
+        // 階層3のフォルダを取得
+        const foldersL3 = (await getChildren(folderL2.id)).filter(isFolder);
         await Promise.all(foldersL3.map(async (folderL3) => {
-          const nameL3 = folderL3.name;
-
           foldersCount++;
 
           // ファイル取得
           const files = await getChildren(folderL3.id);
 
           if (files.length === 0) return;
-          const targetL3 = await getOrCreateFolder(targetL2.id, nameL3);
-
-          const prefix = `${nameL1}-${nameL2}-${nameL3}-`;
-
-          // 各ファイルの処理を並行実行
-          await Promise.all(files.map(async (file) => {
-            const originalName = file.name;
-            const newName = prefix + originalName;
-
-            // 移動とリネームを1回のAPIコールで実行
-            await moveFile(
-              file.id,
-              folderL3.id,
-              targetL3.id,
-              newName,
-            );
-
-            processedCount++;
-            addLog(
-              `Processed: ${newName}`,
-            );
-          }));
-          // if (files.length > 0) {
-          //   await Promise.all([update(folderL3.id), update(targetL3.id)]);
-          // }
+          await doMove(files, [
+            folderL1,
+            folderL2,
+            folderL3,
+          ]);
+          processedCount += files.length;
         }));
       }));
     }));
@@ -116,6 +79,21 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
   }
 }
 
+const cache = new Map<[string, string], DriveItem>();
+async function getTargetFolder(
+  parentId: string,
+  folderNames: string[],
+): Promise<DriveItem> {
+  const folderName = folderNames[0];
+  let target = cache.get([parentId, folderName]);
+  if (!target) {
+    target = await getOrCreateFolder(parentId, folderName);
+    cache.set([parentId, folderName], target);
+  }
+  if (folderNames.length == 1) return target;
+  return getTargetFolder(target.id, folderNames.slice(1));
+}
+
 export async function doMove(
   items: DriveItem[],
   parents: DriveItem[],
@@ -123,24 +101,20 @@ export async function doMove(
   if (parents.length !== 3) return;
   if (parents[0].parents[0] !== UP_FOLDER_ID) return;
   const folderNames = parents.map((f) => f.name);
-  const [nameL1, nameL2, nameL3] = folderNames;
-  const targetL1 = await getOrCreateFolder(DL_FOLDER_ID, nameL1);
-  const targetL2 = await getOrCreateFolder(targetL1.id, nameL2);
-  const targetL3 = await getOrCreateFolder(targetL2.id, nameL3);
-
-  const prefix = `${nameL1}-${nameL2}-${nameL3}-`;
+  const prefix = folderNames.join("-") + "-";
   const parentId = parents[parents.length - 1].id;
+
+  const target = await getTargetFolder(DL_FOLDER_ID, folderNames);
 
   // 各ファイルの処理を並行実行
   await Promise.all(items.map(async (file) => {
-    const originalName = file.name;
-    const newName = prefix + originalName;
+    const newName = prefix + file.name;
 
     // 移動とリネームを1回のAPIコールで実行
     await moveFile(
       file.id,
       parentId,
-      targetL3.id,
+      target.id,
       newName,
     );
 
@@ -151,7 +125,7 @@ export async function doMove(
   if (items.length > 0) {
     await Promise.all([
       getChildren(parentId, true),
-      getChildren(targetL3.id, true),
+      getChildren(target.id, true),
     ]);
   }
 }
@@ -161,6 +135,7 @@ export async function doMove(
  */
 export async function moveAllHandler(c: Context) {
   try {
+    cache.clear();
     const result = await moveAllFiles();
 
     if (result.status === "error") {
@@ -193,11 +168,11 @@ if (import.meta.main) {
     console.error(`Error: ${result.error}`);
   }
   Deno.cron("Log a message", "* * * * *", async () => {
-    console.log(new Date(), `Starting file migration...`);
+    console.log(new Date(), `\nStarting file migration...`);
 
     const result = await moveAllFiles();
 
-    console.log("\n=== Results ===");
+    console.log(new Date(), "\n=== Results ===");
     console.log(`Status: ${result.status}`);
     console.log(`Folders processed: ${result.foldersCount}`);
     console.log(`Processed files: ${result.processedFiles}`);
