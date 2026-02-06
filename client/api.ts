@@ -1,13 +1,15 @@
 import type { DriveFile } from "./model.ts";
 
 // const basePath = "https://gdrive-tree.kuboon-tokyo.deno.net"
-const basePath = "/"
+const basePath = "/";
 
 export async function fetchFolderContents(
   folderId: string,
   refresh = false,
 ): Promise<DriveFile[]> {
-  const url = `${basePath}/api/folders/${folderId}${refresh ? "?refresh=true" : ""}`;
+  const url = `${basePath}/api/folders/${folderId}${
+    refresh ? "?refresh=true" : ""
+  }`;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch folder: ${response.statusText}`);
