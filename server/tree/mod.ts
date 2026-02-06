@@ -112,7 +112,7 @@ async function allParents(fileId: string): Promise<DriveItem[]> {
   if (item && item.parents && item.parents.length > 0) {
     const parent = item.parents[0];
     const grandparents = await allParents(parent);
-    return [item, ...grandparents];
+    return [...grandparents, item];
   } else {
     return [];
   }
@@ -122,10 +122,9 @@ async function processMove(
   folderId: string,
   items: DriveItem[],
 ): Promise<void> {
-  const files = items.filter((x) => !isFolder(x));
-  if (files.length === 0) return;
+  if (items.length === 0) return;
   const parents = await allParents(folderId);
-  return doMove(files, parents);
+  return doMove(items, parents);
 }
 
 /**

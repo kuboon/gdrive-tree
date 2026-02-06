@@ -119,28 +119,29 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
 }
 
 export async function doMove(
-  files: DriveItem[],
+  items: DriveItem[],
   parents: DriveItem[],
 ): Promise<void> {
-  if (parents.length !== 4) return;
-  if (parents[3].id !== UP_FOLDER_ID) return;
-  const folderNames = parents.slice(0, 3).map((f) => f.name);
-  const [nameL3, nameL2, nameL1] = folderNames;
+  if (parents.length !== 3) return;
+  if (parents[0].parents[0] !== UP_FOLDER_ID) return;
+  const folderNames = parents.map((f) => f.name);
+  const [nameL1, nameL2, nameL3] = folderNames;
   const targetL1 = await getOrCreateFolder(DL_FOLDER_ID, nameL1);
   const targetL2 = await getOrCreateFolder(targetL1.id, nameL2);
   const targetL3 = await getOrCreateFolder(targetL2.id, nameL3);
 
   const prefix = `${nameL1}-${nameL2}-${nameL3}-`;
+  const parentId = parents[parents.length - 1].id;
 
   // 各ファイルの処理を並行実行
-  await Promise.all(files.map(async (file) => {
+  await Promise.all(items.map(async (file) => {
     const originalName = file.name;
     const newName = prefix + originalName;
 
     // 移動とリネームを1回のAPIコールで実行
     await moveFile(
       file.id,
-      parents[0].id,
+      parentId,
       targetL3.id,
       newName,
     );
@@ -149,8 +150,8 @@ export async function doMove(
       `Processed: ${newName}`,
     );
   }));
-  if (files.length > 0) {
-    await Promise.all([update(parents[0].id), update(targetL3.id)]);
+  if (items.length > 0) {
+    await Promise.all([update(parentId), update(targetL3.id)]);
   }
 }
 
