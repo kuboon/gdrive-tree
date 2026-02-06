@@ -95,8 +95,6 @@ export async function ensureWatchChannel(
  * キャッシュを無効化し、最新のファイルリストを取得して保存
  */
 export async function update(folderId: string): Promise<void> {
-  console.log(`Received watch notification for folder ${folderId}`);
-
   try {
     // 最新のファイルリストを取得
     const files = await driveFiles(folderId);

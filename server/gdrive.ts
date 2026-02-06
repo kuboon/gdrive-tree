@@ -220,7 +220,6 @@ export async function createWatch(
     resourceId: string;
     expiration: string;
   };
-  console.log(`Created watch channel: ${JSON.stringify(result)}`);
 
   return {
     id: result.id,

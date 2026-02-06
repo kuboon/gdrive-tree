@@ -14,6 +14,7 @@ export function createTreeRouter(): Hono {
       // https://developers.google.com/workspace/drive/api/guides/push
       const resourceState = c.req.header("X-Goog-Resource-State");
       const channelId = c.req.header("X-Goog-Channel-ID");
+      const changed = c.req.header("X-Goog-Changed");
       const folderId = c.req.param("folderId"); // Validate and sanitize folderId
       if (!/^[a-zA-Z0-9_-]+$/.test(folderId)) {
         return c.json({ error: "Invalid folderId format" }, 400);
@@ -23,7 +24,6 @@ export function createTreeRouter(): Hono {
       if (resourceState === "sync") {
         return c.text("OK", 200);
       }
-
       // 必須ヘッダーの検証
       if (!channelId) {
         console.error("Watch notification without channelId");
@@ -43,6 +43,9 @@ export function createTreeRouter(): Hono {
         console.error(`Failed to verify watch channel: ${error}`);
         return c.text("Forbidden", 403);
       }
+      console.log(
+        `Received watch notification for folder ${folderId}: state=${resourceState}, changed=${changed}`,
+      );
 
       try {
         // キャッシュを更新
