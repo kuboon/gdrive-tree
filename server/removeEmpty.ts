@@ -31,11 +31,10 @@ async function removeEmptyFoldersRecursive(
 
   // 各サブフォルダを再帰的に処理
   let deletedChildren = 0;
-  for (const folder of folders) {
-    const [deleted, deletedSelf] = await removeEmptyFoldersRecursive(
-      folder.id,
-      addLog,
-    );
+  const results = await Promise.all(
+    folders.map((folder) => removeEmptyFoldersRecursive(folder.id, addLog)),
+  );
+  for (const [deleted, deletedSelf] of results) {
     deletedCount += deleted;
     if (deletedSelf) deletedChildren++;
   }
