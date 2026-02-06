@@ -84,9 +84,9 @@ export async function ensureWatchChannel(
         );
       } catch (error) {
         console.error(`Failed to create watch channel: ${error}`);
-        const err = error as { error?: { message?: string } };
+        const err = error as { message?: string };
         if (
-          err.error?.message ===
+          err.message ===
             "Rate limit exceeded for creating file subscriptions."
         ) {
           return new Error("Rate limit exceeded for creating watch channels.");
