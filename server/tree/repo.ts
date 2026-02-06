@@ -24,7 +24,9 @@ class KvEntry<T> {
  */
 const repos = {
   watchChannel: (folderId: string) =>
-    new KvEntry<WatchChannel>(["watch_channel", folderId]),
+    new KvEntry<WatchChannel>(["watch_channel", folderId], {
+      expireIn: 7 * 24 * 60 * 60 * 1000,
+    }), // 7日間
   driveItem: (itemId: string) => new KvEntry<DriveItem>(["drive_item", itemId]),
   driveItemByParent: (parentId: string) =>
     new KvEntry<string[]>(["drive_item_by_parent", parentId]),
