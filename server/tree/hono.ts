@@ -91,18 +91,24 @@ export function createTreeRouter(): Hono {
         const batch = queue.splice(0, concurrencyLimit);
 
         await Promise.all(
-          batch.map(async (file) => {
-            ret.push(file);
-            // watch channel の確認と作成・更新
-            const webhookUrl = `${origin}/api/watch/${file.id}`;
-            await ensureWatchChannel(webhookUrl, file.id);
+          [
+            ...batch.map(async (file) => {
+              ret.push(file);
+              // watch channel の確認と作成・更新
+              const webhookUrl = `${origin}/api/watch/${file.id}`;
+              const error = await ensureWatchChannel(webhookUrl, file.id);
+              if (error) {
+                throw error;
+              }
 
-            const subChildren = await getChildren(file.id);
-            const folders = subChildren?.filter(isFolder) || [];
-            if (folders.length > 0) {
-              queue.push(...folders);
-            }
-          }),
+              const subChildren = await getChildren(file.id);
+              const folders = subChildren?.filter(isFolder) || [];
+              if (folders.length > 0) {
+                queue.push(...folders);
+              }
+            }),
+            new Promise((resolve) => setTimeout(resolve, 500)), // API レート制限対策
+          ],
         );
       }
 
