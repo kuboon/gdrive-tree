@@ -62,6 +62,14 @@ function FileItem(
         e.preventDefault();
         dispatch({ type: "NavigateDown" });
         break;
+      case "ArrowLeft":
+        e.preventDefault();
+        dispatch({ type: "NavigateLeft" });
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        dispatch({ type: "NavigateRight" });
+        break;
       case "Enter":
         e.preventDefault();
         globalThis.open(setup.file.webViewLink, "_blank");
@@ -201,9 +209,17 @@ export function Folder(
         dispatch({ type: "NavigateLeft" });
         break;
       case "Enter":
+        e.preventDefault();
+        globalThis.open(setup.webViewLink, "_blank");
+        break;
       case " ":
         e.preventDefault();
         dispatch({ type: "ToggleFolder", folderId: setup.folderId });
+        break;
+      case "r":
+      case "R":
+        e.preventDefault();
+        dispatch({ type: "RefreshFolder", folderId: setup.folderId });
         break;
     }
   };

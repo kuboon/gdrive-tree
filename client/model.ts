@@ -1,3 +1,5 @@
+import { fetchFolderContents, fetchFolderTree } from "./api.ts";
+
 export interface DriveFile {
   id: string;
   name: string;
@@ -45,7 +47,7 @@ const globalModel: Model = {
 // Store all update callbacks from all components
 const updateCallbacks = new Set<() => void>();
 
-function registerUpdateCallback(callback: () => void) {
+export function registerUpdateCallback(callback: () => void) {
   updateCallbacks.add(callback);
   return () => updateCallbacks.delete(callback);
 }
@@ -373,38 +375,6 @@ function getAllVisibleItems(): string[] {
 
   return result;
 }
-
-// Element の focus 管理は View 側で行う
-// Model は focusedItemId のみ管理
-
-async function fetchFolderContents(
-  folderId: string,
-  refresh = false,
-): Promise<DriveFile[]> {
-  const url = `/api/folders/${folderId}${refresh ? "?refresh=true" : ""}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch folder: ${response.statusText}`);
-  }
-  return await response.json();
-}
-
-async function fetchFolderTree(
-  folderId: string,
-): Promise<DriveFile[]> {
-  const url = `/api/tree/${folderId}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch folder tree: ${response.statusText}`);
-  }
-  return await response.json();
-}
-
-// ============================================================================
-// Public API
-// ============================================================================
-
-export { registerUpdateCallback };
 
 export function getFocusedItemId(): string | null {
   return globalModel.focusedItemId;
