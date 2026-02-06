@@ -1,6 +1,6 @@
 import type { Context } from "@hono/hono";
-import { getOrCreateFolder, isFolder, moveFile } from "./gdrive.ts";
-import { getChildren, update } from "./tree/mod.ts";
+import { isFolder, moveFile } from "./gdrive.ts";
+import { getChildren, getOrCreateFolder } from "./tree/mod.ts";
 import type { DriveItem } from "./tree/types.ts";
 
 // フォルダIDを指定
@@ -61,13 +61,11 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
 
           foldersCount++;
 
-          // ファイル取得とtargetL3の作成を並行実行
-          const [files, targetL3] = await Promise.all([
-            getChildren(folderL3.id).then((children) =>
-              children.filter((x) => !isFolder(x))
-            ),
-            getOrCreateFolder(targetL2.id, nameL3),
-          ]);
+          // ファイル取得
+          const files = await getChildren(folderL3.id);
+
+          if (files.length === 0) return;
+          const targetL3 = await getOrCreateFolder(targetL2.id, nameL3);
 
           const prefix = `${nameL1}-${nameL2}-${nameL3}-`;
 
@@ -89,9 +87,9 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
               `Processed: ${newName}`,
             );
           }));
-          if (files.length > 0) {
-            await Promise.all([update(folderL3.id), update(targetL3.id)]);
-          }
+          // if (files.length > 0) {
+          //   await Promise.all([update(folderL3.id), update(targetL3.id)]);
+          // }
         }));
       }));
     }));
@@ -151,7 +149,7 @@ export async function doMove(
     );
   }));
   if (items.length > 0) {
-    await Promise.all([update(parentId), update(targetL3.id)]);
+    await Promise.all([getChildren(parentId, true), getChildren(targetL3.id, true)]);
   }
 }
 

@@ -250,3 +250,27 @@ export async function stopWatch(channel: WatchChannel): Promise<void> {
     throw new Error(`Stop watch failed: ${response.statusText}`);
   }
 }
+
+/**
+ * フォルダまたはファイルを削除
+ */
+export async function trashFile(fileId: string): Promise<void> {
+  const params = new URLSearchParams();
+  params.append("supportsAllDrives", "true");
+
+  const url = await buildApiUrl(
+    `https://www.googleapis.com/drive/v3/files/${fileId}`,
+    params,
+  );
+  const headers = await getAuthHeaders();
+
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ trashed: true }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Delete failed: ${response.statusText}`);
+  }
+}

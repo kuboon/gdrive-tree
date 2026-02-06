@@ -7,7 +7,7 @@ import {
   saveChildren,
   saveWatchChannel,
 } from "./repo.ts";
-import { createWatch, driveFiles, isFolder, stopWatch } from "../gdrive.ts";
+import { createWatch, driveFiles, getOrCreateFolder as getOrCreateFolderInDrive, isFolder, stopWatch } from "../gdrive.ts";
 import { doMove } from "../move.ts";
 
 /**
@@ -39,7 +39,6 @@ export async function getChildren(
 
   // 3. キャッシュに保存
   await saveChildren(folderId, files);
-  await processMove(folderId, files);
 
   // 4. 返す
   return files;
@@ -146,4 +145,20 @@ export async function getTree(
   }
 
   return allFiles;
+}
+
+/**
+ * 親フォルダ内に同名のフォルダを検索、なければ作成
+ */
+export async function getOrCreateFolder(
+  parentId: string,
+  folderName: string,
+): Promise<DriveItem> {
+  const children = await getChildren(parentId);
+  const existing = children.find((item) =>
+    isFolder(item) && item.name === folderName
+  );
+  if (existing) return existing;
+
+  return getOrCreateFolderInDrive(parentId, folderName);
 }
