@@ -1,5 +1,4 @@
-// deno-lint-ignore no-import-prefix
-import { OtlpExporter } from "https://bunseki.kbn.one/exporter.browser.js";
+import { OtlpExporter } from "bunseki/exporter.browser.js";
 
 const otlp = new OtlpExporter({ serviceName: "gdrive-tree.kuboon-tokyo.deno.net" });
 let span = await otlp.onPageLoad();

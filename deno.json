@@ -13,7 +13,8 @@
   },
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4.6.15",
-    "@remix-run/component": "npm:@remix-run/component@^0.4.0"
+    "@remix-run/component": "npm:@remix-run/component@^0.4.0",
+    "bunseki/": "https://bunseki.kbn.one/"
   },
   "compilerOptions": {
     "jsx": "react-jsx",
@@ -36,13 +37,7 @@
     },
     "bundle": {
       "write": ["./dist"],
-      "env": [
-        "GOOGLE_DRIVE_ID",
-        "GOOGLE_KEY",
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "GOOGLE_REFRESH_TOKEN"
-      ]
+      "import": ["bunseki.kbn.one:443"]
     }
   },
   "unstable": [

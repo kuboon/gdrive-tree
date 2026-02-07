@@ -3,7 +3,7 @@ import { createBundleServeMiddleware } from "./bundleServe.ts";
 import { createTreeRouter } from "./tree/hono.ts";
 import { moveAllHandler } from "./move.ts";
 
-import { OtlpExporter } from "https://bunseki.kbn.one/exporter.server.js";
+import { OtlpExporter } from "bunseki/exporter.server.js";
 import { Hono } from "@hono/hono";
 import { cors } from "@hono/hono/cors";
 import { serveStatic } from "@hono/hono/deno";
