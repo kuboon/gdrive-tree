@@ -1,15 +1,29 @@
 import { bundle } from "./bundle.ts";
 import { createBundleServeMiddleware } from "./bundleServe.ts";
 import { createTreeRouter } from "./tree/hono.ts";
+import { moveAllHandler } from "./move.ts";
 
+import { OtlpExporter } from "https://bunseki.kbn.one/exporter.server.js";
 import { Hono } from "@hono/hono";
 import { cors } from "@hono/hono/cors";
 import { serveStatic } from "@hono/hono/deno";
-import { moveAllHandler } from "./move.ts";
+
+const otlp = new OtlpExporter({ serviceName: "gdrive-tree.kuboon-tokyo.deno.net" });
 
 const app: Hono = new Hono();
 app
   .use("/*", cors())
+  .use(async (c, next) => {
+    const span = await otlp.onRequest(c.req.raw);
+    try {
+      await next();
+    } catch (err) {
+      span.postError(err instanceof Error ? err : new Error(String(err)));
+      throw err;
+    } finally {
+      span.post();
+    }
+  })
   .post("/api/move-all", moveAllHandler)
   .route("/api", createTreeRouter());
 
