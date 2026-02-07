@@ -1,154 +1,172 @@
 # Google Drive Tree Browser
 
-This project is a Google Drive file browser with a tree view, built with SolidJS
-and Hono.
+A web application that displays Google Drive folder trees, built with Deno, using a Hono server and @remix-run/component frontend.
 
 ## Architecture
 
-The application uses a server-side architecture where:
+- **Frontend**: React-like UI built with @remix-run/component
+- **Backend**: Hono server that provides a proxy to Google Drive API
+- **Bundler**: Client-side bundling with bunseki (Deno.bundle wrapper)
+- **Authentication**: Server-side only - automatic token refresh using OAuth 2.0 refresh token
+- **Caching**: Folder information caching with Deno KV
+- **Notifications**: Real-time updates via Google Drive Push Notifications
 
-- **Frontend**: SolidJS application that displays the file tree
-- **Backend**: Hono server that proxies all Google Drive API calls
-- **Authentication**: Server-side only - token configured via environment
-  variable
+## Requirements
 
-All Google Drive API access goes through the Hono server. The server reads the
-access token from environment variables, eliminating the need for browser-based
-OAuth.
-
-## Prerequisites
-
-- Node.js and npm (for building the frontend)
-- Deno (for running the server)
+- [Deno](https://deno.land/) 2.0 or later
 - Google OAuth 2.0 credentials (Client ID, Client Secret, Refresh Token)
+- Google Shared Drive ID
 
-## Getting Google OAuth 2.0 Credentials
+## Obtaining OAuth 2.0 Credentials
 
-The server uses OAuth 2.0 refresh token for automatic access token renewal.
+### 1. Google Cloud Console Setup
 
-1. **Set up OAuth 2.0 credentials in Google Cloud Console:**
-   - Go to https://console.cloud.google.com/
-   - Create or select a project
-   - Enable the Google Drive API
-   - Go to "APIs & Services" → "Credentials"
-   - Click "Create Credentials" → "OAuth client ID"
-   - Application type: "Web application"
-   - Add authorized redirect URI:
-     `https://developers.google.com/oauthplayground`
-   - Save and note your **Client ID** and **Client Secret**
+1. Access [Google Cloud Console](https://console.cloud.google.com/)
+2. Create or select a project
+3. Enable the Google Drive API
+4. Navigate to "APIs & Services" → "Credentials"
+5. Click "Create Credentials" → "OAuth client ID"
+6. Application type: "Web application"
+7. Add authorized redirect URI: `http://localhost:8080/oauth2callback`
+8. Note your **Client ID** and **Client Secret**
 
-2. **Get a Refresh Token using OAuth 2.0 Playground:**
-   - Visit https://developers.google.com/oauthplayground/
-   - Click the gear icon (⚙️) in the top right
-   - Check "Use your own OAuth credentials"
-   - Enter your **OAuth Client ID** and **OAuth Client Secret**
-   - In Step 1, select "Drive API v3" →
-     `https://www.googleapis.com/auth/drive.readonly` (or `drive` for full
-     access)
-   - Click "Authorize APIs" and grant permissions
-   - In Step 2, click "Exchange authorization code for tokens"
-   - Copy the **Refresh token** (it starts with `1//` and is long-lived)
+### 2. Obtaining a Refresh Token
 
-**Note:** The refresh token allows the server to automatically obtain and renew
-access tokens as needed.
+Use the authentication script included in the project:
+
+```bash
+# Set environment variables
+export GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+export GOOGLE_CLIENT_SECRET=your-client-secret
+
+# Run the authentication flow
+deno task auth
+```
+
+Open the displayed URL in your browser and authenticate with your Google account. Once authentication is complete, the refresh token will be displayed.
 
 ## Setup
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+### 1. Configure Environment Variables
 
-2. **Configure environment:**
+Copy `.env.local.example` to `.env.local` and edit:
 
-   Copy `.env.local.example` to `.env.local` and configure your credentials:
-   ```bash
-   cp .env.local.example .env.local
-   ```
+```bash
+cp .env.local.example .env.local
+```
 
-   Edit `.env.local`:
-   ```
-   GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-   GOOGLE_CLIENT_SECRET=your-client-secret
-   GOOGLE_REFRESH_TOKEN=your-refresh-token
-   GOOGLE_DRIVE_ID=your-shared-drive-id
-   ```
+Set the following in `.env.local`:
 
-3. **Build the frontend:**
-   ```bash
-   npm run build
-   ```
+```env
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REFRESH_TOKEN=your-refresh-token
+GOOGLE_DRIVE_ID=your-shared-drive-id
+```
 
-4. **Run the server:**
-   ```bash
-   deno task server
-   ```
+### 2. Build the Client
 
-   The server will start on `http://localhost:8000`
+```bash
+deno task bundle
+```
+
+### 3. Start the Server
+
+```bash
+deno task serve
+```
+
+The server will start at `http://localhost:8000`
 
 ## Development
 
-For frontend development with hot reload:
+Development mode watches for file changes and automatically restarts:
 
 ```bash
-# Terminal 1: Build frontend in dev mode
-npm run dev
-
-# Terminal 2: Run the server
-export GOOGLE_CLIENT_ID=your-client-id
-export GOOGLE_CLIENT_SECRET=your-client-secret
-export GOOGLE_REFRESH_TOKEN=your-refresh-token
-export GOOGLE_DRIVE_ID=your-shared-drive-id
-deno task server
+deno task dev
 ```
 
-During development, if running frontend dev server separately:
+This command:
+- Watches the client and server directories for changes
+- Automatically restarts the server when changes are detected
+- Client code is automatically bundled on first access
 
-- Frontend dev server: `http://localhost:3000` (or port from vite)
-- Backend API server: `http://localhost:8000`
-- Set `VITE_API_BASE_URL=http://localhost:8000` in `.env.local` to connect to
-  backend
+## Available Tasks
 
-## Available Scripts
+Tasks defined in the root `deno.json`:
 
-### Frontend (npm)
-
-- `npm run dev` - Start Vite dev server with hot reload
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-
-### Backend (deno)
-
-- `deno task server` - Run Hono server
-- `deno task serve` - Serve static files (legacy)
+- `deno task dev` - Development mode (with hot reload)
+- `deno task bundle` - Build client code and output to `./dist`
+- `deno task serve` - Start server in production mode
+- `deno task auth` - Run OAuth authentication flow to obtain refresh token
+- `deno task fmt` - Format code, lint, and type check
+- `deno task check` - Check formatting, lint, and type check
 
 ## API Endpoints
 
-The Hono server provides these endpoints:
+Endpoints provided by the Hono server:
 
-- `GET /api/auth/check` - Check if server has a valid Google Drive token
-  configured
-- `POST /api/drive/files/list` - List files from Google Drive
+- `GET /api/folders/:id` - Get children of the specified folder
+- `GET /api/tree/:id` - Recursively get the entire folder tree
+- `POST /api/watch/:folderId` - Receive push notifications from Google Drive
+- `POST /api/move-all` - File move operation
 
-## Browser Compatibility
+## Project Structure
 
-This project works in all modern browsers. No browser-specific authentication is
-required.
+```
+gdrive-tree/
+├── client/              # Frontend code
+│   ├── deno.json       # Client configuration
+│   ├── index.tsx       # Entry point
+│   ├── Folder.tsx      # Folder component
+│   ├── model.ts        # State management
+│   └── api.ts          # API client
+├── server/              # Backend code
+│   ├── deno.json       # Server configuration
+│   ├── app.ts          # Hono application
+│   ├── auth.ts         # OAuth authentication script
+│   ├── oauth.ts        # Token management
+│   ├── gdrive.ts       # Google Drive API
+│   ├── bundle.ts       # Build script
+│   └── tree/           # Tree features
+│       ├── mod.ts      # Tree logic
+│       ├── hono.ts     # Tree API
+│       ├── repo.ts     # Data repository
+│       └── types.ts    # Type definitions
+├── deno.json            # Workspace configuration
+├── .env.local           # Environment variables (gitignored)
+└── dist/                # Build output (auto-generated)
+```
 
-## Learn More
+## Deployment
 
-To learn more about the technologies used:
+This project can be deployed to Deno Deploy:
 
-- [SolidJS Documentation](https://www.solidjs.com/docs/latest)
-- [Hono Documentation](https://hono.dev/)
-- [Google Drive API](https://developers.google.com/drive/api/v3/about-sdk)
+```bash
+# Deploy to Deno Deploy
+deno deploy
+```
+
+Configuration is managed in the `deploy` section of `deno.json`.
+
+## Technology Stack
+
+- **Runtime**: [Deno 2.0](https://deno.land/)
+- **Frontend**: [@remix-run/component](https://www.npmjs.com/package/@remix-run/component)
+- **Backend**: [Hono](https://hono.dev/)
+- **Bundler**: [bunseki](https://bunseki.kbn.one/) (Deno.bundle wrapper)
+- **API**: [Google Drive API v3](https://developers.google.com/drive/api/v3/about-sdk)
+- **Cache**: Deno KV
+- **Observability**: OTLP Exporter (bunseki)
 
 ## Notes
 
-- **Token Management:** The server uses OAuth 2.0 refresh token for automatic
-  access token renewal
-- Access tokens are automatically refreshed when they expire (typically every
-  hour)
-- No user authentication is performed - the application uses a single set of
-  credentials for all requests
-- The refresh token is long-lived and doesn't expire unless revoked
+- **Token Management**: Automatic access token refresh using refresh token
+- **Caching**: Folder information is cached in Deno KV for improved performance
+- **Real-time Updates**: Changes are detected via Google Drive Push Notifications
+- User authentication is not implemented - all requests use a single set of credentials
+- The refresh token is long-lived and remains valid until revoked
+
+## License
+
+This project is released under the MIT License.
