@@ -1,10 +1,12 @@
 # Development Guide for AI Agents
 
-This document provides architectural insights and development guidelines for AI coding agents working on this project.
+This document provides architectural insights and development guidelines for AI
+coding agents working on this project.
 
 ## Project Overview
 
 This is a Google Drive folder tree viewer built with Deno, featuring:
+
 - Server-side OAuth 2.0 authentication
 - Deno KV-based caching
 - Google Drive Push Notifications for real-time updates
@@ -41,7 +43,8 @@ Both are referenced in the root `deno.json` workspace configuration.
 
 ### Authentication Flow
 
-**Important**: This project does NOT use browser-based OAuth. All authentication is server-side.
+**Important**: This project does NOT use browser-based OAuth. All authentication
+is server-side.
 
 ```
 ┌─────────────┐
@@ -70,6 +73,7 @@ Both are referenced in the root `deno.json` workspace configuration.
 ### API Architecture
 
 **Server**: `server/app.ts` is the main entry point
+
 - Uses Hono for routing
 - CORS enabled for all routes
 - OTLP tracing for observability
@@ -97,8 +101,8 @@ GET /api/tree/:id
 
 ```typescript
 // Cache key format
-`tree:${folderId}`           // Folder children cache
-`tree:${folderId}:watch`     // Watch channel metadata
+`tree:${folderId}` // Folder children cache
+  `tree:${folderId}:watch`; // Watch channel metadata
 ```
 
 - Default TTL: 24 hours
@@ -233,7 +237,8 @@ Defined in root `deno.json`:
 }
 ```
 
-When adding new file operations or network requests, update permissions accordingly.
+When adding new file operations or network requests, update permissions
+accordingly.
 
 ## Testing Strategy
 
@@ -258,6 +263,7 @@ Configuration in `deno.json`:
 ```
 
 **Important for webhooks**:
+
 - Webhook URL must use public Deno Deploy URL
 - Local `localhost` webhooks won't work
 - Consider environment-specific webhook URLs
@@ -265,12 +271,14 @@ Configuration in `deno.json`:
 ### Environment Variables
 
 Required on deployment:
+
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_REFRESH_TOKEN`
 - `GOOGLE_DRIVE_ID`
 
 Optional:
+
 - `USE_DENO_KV=true` for persistent cache
 
 ## Troubleshooting

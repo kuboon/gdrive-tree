@@ -8,7 +8,9 @@ import { Hono } from "@hono/hono";
 import { cors } from "@hono/hono/cors";
 import { serveStatic } from "@hono/hono/deno";
 
-const otlp = new OtlpExporter({ serviceName: "gdrive-tree.kuboon-tokyo.deno.net" });
+const otlp = new OtlpExporter({
+  serviceName: "gdrive-tree.kuboon-tokyo.deno.net",
+});
 
 const app: Hono = new Hono();
 app

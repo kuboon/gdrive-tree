@@ -1,13 +1,15 @@
 # Google Drive Tree Browser
 
-A web application that displays Google Drive folder trees, built with Deno, using a Hono server and @remix-run/component frontend.
+A web application that displays Google Drive folder trees, built with Deno,
+using a Hono server and @remix-run/component frontend.
 
 ## Architecture
 
 - **Frontend**: React-like UI built with @remix-run/component
 - **Backend**: Hono server that provides a proxy to Google Drive API
 - **Bundler**: Client-side bundling with bunseki (Deno.bundle wrapper)
-- **Authentication**: Server-side only - automatic token refresh using OAuth 2.0 refresh token
+- **Authentication**: Server-side only - automatic token refresh using OAuth 2.0
+  refresh token
 - **Caching**: Folder information caching with Deno KV
 - **Notifications**: Real-time updates via Google Drive Push Notifications
 
@@ -43,7 +45,8 @@ export GOOGLE_CLIENT_SECRET=your-client-secret
 deno task auth
 ```
 
-Open the displayed URL in your browser and authenticate with your Google account. Once authentication is complete, the refresh token will be displayed.
+Open the displayed URL in your browser and authenticate with your Google
+account. Once authentication is complete, the refresh token will be displayed.
 
 ## Setup
 
@@ -87,6 +90,7 @@ deno task dev
 ```
 
 This command:
+
 - Watches the client and server directories for changes
 - Automatically restarts the server when changes are detected
 - Client code is automatically bundled on first access
@@ -152,10 +156,12 @@ Configuration is managed in the `deploy` section of `deno.json`.
 ## Technology Stack
 
 - **Runtime**: [Deno 2.0](https://deno.land/)
-- **Frontend**: [@remix-run/component](https://www.npmjs.com/package/@remix-run/component)
+- **Frontend**:
+  [@remix-run/component](https://www.npmjs.com/package/@remix-run/component)
 - **Backend**: [Hono](https://hono.dev/)
 - **Bundler**: [bunseki](https://bunseki.kbn.one/) (Deno.bundle wrapper)
-- **API**: [Google Drive API v3](https://developers.google.com/drive/api/v3/about-sdk)
+- **API**:
+  [Google Drive API v3](https://developers.google.com/drive/api/v3/about-sdk)
 - **Cache**: Deno KV
 - **Observability**: OTLP Exporter (bunseki)
 
@@ -163,8 +169,10 @@ Configuration is managed in the `deploy` section of `deno.json`.
 
 - **Token Management**: Automatic access token refresh using refresh token
 - **Caching**: Folder information is cached in Deno KV for improved performance
-- **Real-time Updates**: Changes are detected via Google Drive Push Notifications
-- User authentication is not implemented - all requests use a single set of credentials
+- **Real-time Updates**: Changes are detected via Google Drive Push
+  Notifications
+- User authentication is not implemented - all requests use a single set of
+  credentials
 - The refresh token is long-lived and remains valid until revoked
 
 ## License
