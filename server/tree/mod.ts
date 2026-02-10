@@ -87,7 +87,10 @@ export async function ensureWatchChannel(
         );
         await sleep(1000); // API制限回避のため少し待機
       } catch (error) {
-        console.error(`Failed to create watch channel: ${error}`, Object.keys(error as object));
+        console.error(
+          `Failed to create watch channel: ${error}`,
+          Object.keys(error as object),
+        );
         const err = error as { error: { message?: string } };
         console.error(err.error?.message);
         if (

@@ -49,6 +49,55 @@ async function buildApiUrl(
   }
 }
 
+/**
+ * ゴミ箱内のフォルダをページネーションで取得する async iterator
+ * 50件以上対応、引数なし
+ */
+export async function* trashedFolders(): AsyncGenerator<
+  DriveItem,
+  void,
+  unknown
+> {
+  const FIXED_FIELDS =
+    "files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink,parents),nextPageToken";
+  let pageToken: string | undefined = undefined;
+  do {
+    const params = new URLSearchParams();
+    params.append("includeItemsFromAllDrives", "true");
+    params.append("supportsAllDrives", "true");
+    params.append("orderBy", "modifiedTime desc");
+    params.append("pageSize", "50");
+    params.append("fields", FIXED_FIELDS);
+    params.append(
+      "q",
+      "mimeType='application/vnd.google-apps.folder' and trashed=true",
+    );
+    if (pageToken) params.append("pageToken", pageToken);
+
+    const url = await buildApiUrl(
+      "https://www.googleapis.com/drive/v3/files",
+      params,
+    );
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Google Drive API error: ${response.status} ${response.statusText} - ${errorText}`,
+      );
+    }
+    const json = await response.json() as {
+      files: DriveItem[];
+      nextPageToken?: string;
+    };
+    for (const file of json.files) {
+      yield file;
+    }
+    pageToken = json.nextPageToken;
+  } while (pageToken);
+}
+
 export async function driveFiles(
   folderId: string,
 ): Promise<DriveItem[]> {
