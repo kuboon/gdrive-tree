@@ -50,16 +50,13 @@ export async function getChildren(
   return files;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 /**
  * watch channel が有効かチェックし、必要に応じて作成・更新
  */
 export async function ensureWatchChannel(
   webhookUrl: string,
   folderId: string,
-): Promise<Error | void> {
+): Promise<void> {
   const channel = await getWatchChannel(folderId);
   const now = Date.now();
 
@@ -75,32 +72,13 @@ export async function ensureWatchChannel(
       await deleteWatchChannel(folderId);
     }
 
-    // http: の場合はスキップ
-    if (webhookUrl.startsWith("https:")) {
-      try {
-        const newChannel = await createWatch(folderId, webhookUrl);
-        await saveWatchChannel(folderId, newChannel);
-        console.log(
-          `Created watch channel for folder ${folderId}, expires at ${new Date(
-            newChannel.expiration,
-          )}`,
-        );
-        await sleep(1000); // API制限回避のため少し待機
-      } catch (error) {
-        console.error(
-          `Failed to create watch channel: ${error}`,
-          Object.keys(error as object),
-        );
-        const err = error as { error: { message?: string } };
-        console.error(err.error?.message);
-        if (
-          err.error?.message ===
-            "Rate limit exceeded for creating file subscriptions."
-        ) {
-          return new Error("Rate limit exceeded for creating watch channels.");
-        }
-      }
-    }
+    const newChannel = await createWatch(folderId, webhookUrl);
+    await saveWatchChannel(folderId, newChannel);
+    console.log(
+      `Created watch channel for folder ${folderId}, expires at ${new Date(
+        newChannel.expiration,
+      )}`,
+    );
   }
 }
 

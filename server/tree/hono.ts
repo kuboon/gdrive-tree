@@ -3,6 +3,7 @@ import { getWatchChannel } from "./repo.ts";
 import type { DriveItem } from "./types.ts";
 import { isFolder } from "../gdrive.ts";
 import { Hono } from "@hono/hono";
+import { enqueue, runQueue } from "./taskRunner.ts";
 
 /**
  * Tree 関連の API ルートを提供する Hono middleware
@@ -66,12 +67,15 @@ export function createTreeRouter(): Hono {
         return c.json({ error: "Invalid folderId format" }, 400);
       }
 
-      // watch channel の確認と作成・更新
-      const origin = new URL(c.req.url).origin;
-      const webhookUrl = `${origin}/api/watch/${folderId}`;
-      await ensureWatchChannel(webhookUrl, folderId);
-
-      const response = await getChildren(folderId, refresh);
+      const reqUrl = new URL(c.req.url);
+      if (reqUrl.protocol === "https:") {
+        const webhookUrl = `${reqUrl.origin}/api/watch/${folderId}`;
+        enqueue(() => ensureWatchChannel(webhookUrl, folderId));
+      }
+      const [response, _] = await Promise.all([
+        getChildren(folderId, refresh),
+        runQueue(1000),
+      ]);
       return c.json(response);
     })
     .get("/tree/:id", async (c) => {
@@ -82,7 +86,6 @@ export function createTreeRouter(): Hono {
       const folders = children?.filter(isFolder) || [];
       if (folders.length === 0) return c.json([]);
 
-      const origin = new URL(c.req.url).origin;
       // 再帰的にフォルダを収集（並列数を制限）
       const concurrencyLimit = 3; // 並列実行数を制限
       const queue = [...folders];
@@ -95,10 +98,10 @@ export function createTreeRouter(): Hono {
             ...batch.map(async (file) => {
               ret.push(file);
               // watch channel の確認と作成・更新
-              const webhookUrl = `${origin}/api/watch/${file.id}`;
-              const error = await ensureWatchChannel(webhookUrl, file.id);
-              if (error) {
-                throw error;
+              const url = new URL(c.req.url);
+              if (url.protocol === "https:") {
+                const webhookUrl = `${url.origin}/api/watch/${file.id}`;
+                enqueue(() => ensureWatchChannel(webhookUrl, file.id));
               }
 
               const subChildren = await getChildren(file.id);
@@ -107,7 +110,6 @@ export function createTreeRouter(): Hono {
                 queue.push(...folders);
               }
             }),
-            new Promise((resolve) => setTimeout(resolve, 500)), // API レート制限対策
           ],
         );
       }

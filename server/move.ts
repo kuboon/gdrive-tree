@@ -2,6 +2,7 @@ import type { Context } from "@hono/hono";
 import { isFolder, moveFile } from "./gdrive.ts";
 import { getChildren, getOrCreateFolder } from "./tree/mod.ts";
 import type { DriveItem } from "./tree/types.ts";
+import { runQueue } from "./tree/taskRunner.ts";
 
 // フォルダIDを指定
 export const UP_FOLDER_ID = "1QAArkDWkzjVBJtw6Uosq5Iki3NdgMZLh";
@@ -136,7 +137,7 @@ export async function doMove(
 export async function moveAllHandler(c: Context) {
   try {
     cache.clear();
-    const result = await moveAllFiles();
+    const [result, _] = await Promise.all([moveAllFiles(), runQueue(10000)]);
 
     if (result.status === "error") {
       return c.json({

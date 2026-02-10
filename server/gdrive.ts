@@ -227,6 +227,7 @@ export async function moveFile(
   return response.json();
 }
 
+export class RateLimitError extends Error {}
 /**
  * フォルダの変更を監視する watch channel を作成
  * https://developers.google.com/workspace/drive/api/reference/rest/v3/files/watch
@@ -258,9 +259,34 @@ export async function createWatch(
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
+    const errorJson = await response.json();
+    /*
+    {
+  "error": {
+    "code": 403,
+    "message": "Rate limit exceeded for creating file subscriptions.",
+    "errors": [
+      {
+        "message": "Rate limit exceeded for creating file subscriptions.",
+        "domain": "usageLimits",
+        "reason": "subscriptionRateLimitExceeded"
+      }
+    ]
+  }
+}
+     */
+    if (
+      response.status === 403 && errorJson.error?.errors?.[0]?.reason ===
+        "subscriptionRateLimitExceeded"
+    ) {
+      throw new RateLimitError(
+        "Rate limit exceeded for creating file subscriptions.",
+      );
+    }
     throw new Error(
-      `Watch failed: ${response.status} ${response.statusText} - ${errorText}`,
+      `Watch failed: ${response.status} ${response.statusText} - ${
+        JSON.stringify(errorJson)
+      }`,
     );
   }
 

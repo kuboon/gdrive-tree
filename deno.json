@@ -4,8 +4,8 @@
     "./server"
   ],
   "tasks": {
-    "fmt": "deno fmt && deno lint && deno check",
-    "check": "deno fmt --check && deno lint && deno check --allow-import=bunseki.kbn.one:443,jsr.io",
+    "fmt": "deno fmt && deno lint && deno check --allow-import=bunseki.kbn.one,jsr.io",
+    "check": "deno fmt --check && deno lint && deno check --allow-import=bunseki.kbn.one,jsr.io",
     "dev": "deno serve -P --env --watch=client,server server/app.ts",
     "bundle": "deno run -P=bundle server/bundle.ts",
     "serve": "deno serve -P --env server/app.ts",
