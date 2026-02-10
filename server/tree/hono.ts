@@ -3,7 +3,7 @@ import { getWatchChannel } from "./repo.ts";
 import type { DriveItem } from "./types.ts";
 import { isFolder } from "../gdrive.ts";
 import { Hono } from "@hono/hono";
-import { enqueue, runQueue } from "./taskRunner.ts";
+import { enqueue } from "./taskRunner.ts";
 
 /**
  * Tree 関連の API ルートを提供する Hono middleware
@@ -72,10 +72,7 @@ export function createTreeRouter(): Hono {
         const webhookUrl = `${reqUrl.origin}/api/watch/${folderId}`;
         enqueue(() => ensureWatchChannel(webhookUrl, folderId));
       }
-      const [response, _] = await Promise.all([
-        getChildren(folderId, refresh),
-        runQueue(1000),
-      ]);
+      const response = await getChildren(folderId, refresh);
       return c.json(response);
     })
     .get("/tree/:id", async (c) => {
