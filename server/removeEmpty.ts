@@ -25,7 +25,7 @@ async function removeEmptyFoldersRecursive(
   let deleteSelf = false;
 
   // 子要素を取得
-  const children = await getChildren(folderId);
+  const children = await getChildren(folderId, true);
 
   // フォルダのみをフィルタ
   const folders = children.filter(isFolder);
