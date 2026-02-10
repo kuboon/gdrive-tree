@@ -2,6 +2,7 @@ import { RateLimitError } from "../gdrive.ts";
 
 type Task = () => Promise<void>;
 const queue: Task[] = [];
+console.log("Task runner initialized");
 export function enqueue<T>(task: Task): void {
   queue.push(task);
 }
