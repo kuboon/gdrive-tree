@@ -2,19 +2,40 @@ import type { DriveItem, WatchChannel } from "./types.ts";
 
 const kv = await Deno.openKv();
 const expireIn = 20 * 60 * 1000; // 20分
+const memoryCache = new Map<Deno.KvKey, { data: unknown; expireAt: number }>();
 class KvEntry<T> {
   constructor(
     public key: Deno.KvKey,
     private options: { expireIn?: number } = { expireIn },
   ) {}
   async get(): Promise<T | null> {
+    if (memoryCache.has(this.key)) {
+      const { data, expireAt } = memoryCache.get(this.key)!;
+      if (Date.now() < expireAt) {
+        return data as T;
+      } else {
+        memoryCache.delete(this.key);
+      }
+    }
     const result = await kv.get<T>(this.key);
+    if (result.value !== null) {
+      memoryCache.set(this.key, {
+        data: result.value,
+        expireAt: Date.now() + (this.options.expireIn ?? expireIn),
+      });
+    }
     return result.value;
   }
   async set(value: T, options?: { expireIn?: number }): Promise<void> {
+    memoryCache.set(this.key, {
+      data: value,
+      expireAt: Date.now() +
+        (options?.expireIn ?? this.options.expireIn ?? expireIn),
+    });
     await kv.set(this.key, value, options || this.options);
   }
   async delete(): Promise<void> {
+    memoryCache.delete(this.key);
     await kv.delete(this.key);
   }
 }
@@ -25,8 +46,8 @@ class KvEntry<T> {
 const repos = {
   watchChannel: (folderId: string) =>
     new KvEntry<WatchChannel>(["watch_channel", folderId], {
-      expireIn: 7 * 24 * 60 * 60 * 1000,
-    }), // 7日間
+      expireIn: 7 * 24 * 60 * 60 * 1000, // 7日間
+    }),
   driveItem: (itemId: string) => new KvEntry<DriveItem>(["drive_item", itemId]),
   driveItemByParent: (parentId: string) =>
     new KvEntry<string[]>(["drive_item_by_parent", parentId]),
@@ -88,9 +109,9 @@ export async function saveChildren(
   await Promise.all(files.map((file) => repos.driveItem(file.id).set(file)));
 }
 
-export async function deleteCachedFiles(folderId: string): Promise<void> {
-  await repos.driveItemByParent(folderId).delete();
-}
+// export async function deleteCachedFiles(folderId: string): Promise<void> {
+//   await repos.driveItemByParent(folderId).delete();
+// }
 
 export function getDriveItem(
   folderId: string,

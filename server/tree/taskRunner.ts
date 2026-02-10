@@ -7,12 +7,11 @@ export function enqueue<T>(task: Task): void {
 }
 const sleep = (ms: number) => (): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
-export function runQueue(limitMs: number): Promise<void> {
+export function runQueue(timeLimit: number): Promise<void> {
+  const start = Date.now();
   return new Promise((resolve) => {
-    const start = Date.now();
     while (queue.length > 0) {
-      const now = Date.now();
-      if (now - start >= limitMs) {
+      if (Date.now() - start >= timeLimit) {
         break;
       }
       const task = queue.shift()!;
