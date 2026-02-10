@@ -26,12 +26,12 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
     logs.push(message);
   }
   let foldersCount = 0;
-  let processedCount = 0;
+  let processedFiles = 0;
 
   try {
     // 階層1のフォルダをすべて取得
     const foldersL1 = (await getChildren(UP_FOLDER_ID)).filter(isFolder);
-    addLog(`Found ${foldersL1.length} L1 folders`);
+    // addLog(`Found ${foldersL1.length} L1 folders`);
 
     // L1フォルダを並行処理
     await Promise.all(foldersL1.map(async (folderL1) => {
@@ -52,7 +52,7 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
             folderL2,
             folderL3,
           ]);
-          processedCount += files.length;
+          processedFiles += files.length;
         }));
       }));
     }));
@@ -60,7 +60,7 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
     return {
       status: "success",
       foldersCount,
-      processedFiles: processedCount,
+      processedFiles,
       logs,
     };
   } catch (error) {
@@ -72,7 +72,7 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
     return {
       status: "error",
       foldersCount,
-      processedFiles: processedCount,
+      processedFiles: processedFiles,
       logs,
       error: error instanceof Error ? error.message : String(error),
     };

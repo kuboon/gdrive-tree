@@ -50,6 +50,9 @@ export async function getChildren(
   return files;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 /**
  * watch channel が有効かチェックし、必要に応じて作成・更新
  */
@@ -82,11 +85,13 @@ export async function ensureWatchChannel(
             newChannel.expiration,
           )}`,
         );
+        await sleep(1000); // API制限回避のため少し待機
       } catch (error) {
-        console.error(`Failed to create watch channel: ${error}`);
-        const err = error as { message?: string };
+        console.error(`Failed to create watch channel: ${error}`, Object.keys(error as object));
+        const err = error as { error: { message?: string } };
+        console.error(err.error?.message);
         if (
-          err.message ===
+          err.error?.message ===
             "Rate limit exceeded for creating file subscriptions."
         ) {
           return new Error("Rate limit exceeded for creating watch channels.");
