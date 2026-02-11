@@ -45,15 +45,17 @@ export async function moveAllFiles(
       const webHookUrl = `${origin}/api/watch/${folderL1.id}`;
       await ensureWatchChannel(webHookUrl, folderL1.id);
       // 階層2のフォルダを取得
-      const foldersL2 = (await getChildren(folderL1.id)).filter(isFolder);
+      const foldersL2 = (await getChildren(folderL1.id, true)).filter(isFolder);
       await Promise.all(foldersL2.map(async (folderL2) => {
-        const webHookUrl = `${origin}/api/watch/${folderL2.id}`;
-        await ensureWatchChannel(webHookUrl, folderL2.id);
+        // const webHookUrl = `${origin}/api/watch/${folderL2.id}`;
+        // await ensureWatchChannel(webHookUrl, folderL2.id);
         // 階層3のフォルダを取得
-        const foldersL3 = (await getChildren(folderL2.id)).filter(isFolder);
+        const foldersL3 = (await getChildren(folderL2.id, true)).filter(
+          isFolder,
+        );
         await Promise.all(foldersL3.map(async (folderL3) => {
-          const webHookUrl = `${origin}/api/watch/${folderL3.id}`;
-          await ensureWatchChannel(webHookUrl, folderL3.id);
+          // const webHookUrl = `${origin}/api/watch/${folderL3.id}`;
+          // await ensureWatchChannel(webHookUrl, folderL3.id);
           foldersCount++;
 
           // ファイル取得
