@@ -111,6 +111,7 @@ export async function update(folderId: string): Promise<void> {
         await saveChildren(folderId, files);
       }
     }
+
     console.log(`Updated cache for folder ${folderId}, ${files.length} files`);
   } catch (error) {
     console.error(`Failed to update cache for folder ${folderId}: ${error}`);
@@ -118,7 +119,7 @@ export async function update(folderId: string): Promise<void> {
   }
 }
 
-async function allParents(fileId: string): Promise<DriveItem[]> {
+export async function allParents(fileId: string): Promise<DriveItem[]> {
   const item = await getDriveItem(fileId);
   if (item && item.parents && item.parents.length > 0) {
     const parent = item.parents[0];

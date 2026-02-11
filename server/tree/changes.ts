@@ -1,4 +1,4 @@
-import { getChildren } from "./mod.ts";
+import { allParents } from "./mod.ts";
 import {
   deleteChangeWatchChannel,
   getChangeStartPageToken,
@@ -14,8 +14,9 @@ import {
   stopWatch,
   watchChanges,
 } from "../gdrive.ts";
+import { doMove } from "../move.ts";
 
-const EXPIRATION_BUFFER = 60 * 60 * 1000;
+const EXPIRATION_BUFFER = 60 * 60 * 1000; // 1 hour
 const CHANGE_CHANNEL_ID = "drive-changes";
 
 async function resolveStartPageToken(): Promise<string> {
@@ -54,7 +55,7 @@ export async function ensureChangesWatchChannel(
   );
   const expireIn = Math.max(
     0,
-    newChannel.expiration - Date.now() - EXPIRATION_BUFFER,
+    newChannel.expiration - Date.now(),
   );
   await saveChangeWatchChannel(newChannel, expireIn);
   const expiresAt = new Date(newChannel.expiration).toISOString();
@@ -63,46 +64,18 @@ export async function ensureChangesWatchChannel(
   );
 }
 
-async function collectParentFolders(
-  change: Change,
-  folders: Set<string>,
-): Promise<void> {
-  const parents = change.file?.parents;
-  if (parents && parents.length > 0) {
-    parents.forEach((parent) => folders.add(parent));
-    return;
-  }
-  if (!change.fileId) return;
-  const cached = await getDriveItem(change.fileId);
-  cached?.parents?.forEach((parent) => folders.add(parent));
-}
-
-async function refreshFolders(folders: Set<string>): Promise<void> {
-  if (folders.size === 0) { return; }
-  await Promise.all([...folders].map(async (folderId) => {
-    try {
-      await getChildren(folderId, true);
-    } catch (error) {
-      console.warn(
-        `Failed to refresh folder ${folderId}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
-  }));
-  console.log(`Refreshed ${folders.size} folder caches`);
-}
-
-export async function processChangeNotification(): Promise<void> {
+const targetDriveId = "0AAcDDlI12SEtUk9PVA";
+async function collectRecentChanges(): Promise<Change[]> {
   const startPageToken = await resolveStartPageToken();
-  const foldersToRefresh = new Set<string>();
   let pageToken = startPageToken;
-
+  const changes: Change[] = [];
   while (pageToken) {
     const response = await listChanges(pageToken);
-    console.log("listChanges", response)
     for (const change of response.changes) {
-      await collectParentFolders(change, foldersToRefresh);
+      if (change.driveId && change.driveId !== targetDriveId) continue;
+      if (!change.removed) {
+        changes.push(change);
+      }
     }
 
     if (response.nextPageToken) {
@@ -117,5 +90,33 @@ export async function processChangeNotification(): Promise<void> {
     break;
   }
 
-  await refreshFolders(foldersToRefresh);
+  return changes;
+}
+
+export async function processChangeNotification(): Promise<void> {
+  const changes = await collectRecentChanges();
+
+  const pairs: { change: Change; parentId: string }[] = [];
+  for (const change of changes) {
+    if (!change.fileId) continue;
+    const driveItem = (await getDriveItem(change.fileId)) ||
+      (await getDriveItem(change.fileId));
+    if (!driveItem || !driveItem.parents || driveItem.parents.length === 0) {
+      continue;
+    }
+    pairs.push({ change, parentId: driveItem.parents[0] });
+  }
+
+  const map = Map.groupBy(pairs, (p) => p.parentId);
+
+  for (const [parentId, items] of map) {
+    const parents = await allParents(parentId);
+    await doMove(
+      items.map((p) => {
+        const file = p.change.file!;
+        return { name: file.name, id: file.id };
+      }),
+      parents,
+    );
+  }
 }

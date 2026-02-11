@@ -190,9 +190,9 @@ export async function saveChildren(
 // }
 
 export function getDriveItem(
-  folderId: string,
+  itemId: string,
 ): Promise<DriveItem | null> {
-  return repos.driveItem(folderId).get();
+  return repos.driveItem(itemId).get();
 }
 
 const tasksRepo = repos.tasks();

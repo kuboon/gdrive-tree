@@ -114,6 +114,36 @@ export async function* trashedFolders(): AsyncGenerator<
   } while (pageToken);
 }
 
+export async function getDriveItem(
+  itemId: string,
+): Promise<DriveItem | null> {
+  const params = new URLSearchParams();
+  params.append("supportsAllDrives", "true");
+  params.append(
+    "fields",
+    "id,name,mimeType,modifiedTime,size,webViewLink,iconLink,parents",
+  );
+
+  const url = await buildApiUrl(
+    `https://www.googleapis.com/drive/v3/files/${itemId}`,
+    params,
+  );
+  const headers = await getAuthHeaders();
+
+  const response = await fetch(url, { headers });
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Google Drive API error: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
+  const file = await response.json() as DriveItem;
+  return file;
+}
+
 export async function driveFiles(
   folderId: string,
 ): Promise<DriveItem[]> {

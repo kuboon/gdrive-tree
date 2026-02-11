@@ -3,7 +3,6 @@ import {
   ensureChangesWatchChannel,
   processChangeNotification,
 } from "./changes.ts";
-import { getChangeWatchChannel } from "./repo.ts";
 import type { DriveItem } from "./types.ts";
 import { isFolder } from "../gdrive.ts";
 import { Hono } from "@hono/hono";
@@ -12,6 +11,7 @@ import { Hono } from "@hono/hono";
  * Tree 関連の API ルートを提供する Hono middleware
  */
 export function createTreeRouter(): Hono {
+  let changeWatchReceivedAt: number | null = null;
   const router = new Hono()
     .post("/watch/:folderId", async (c) => {
       // Google Drive からの watch 通知を受け取る
@@ -81,10 +81,18 @@ export function createTreeRouter(): Hono {
       // }
 
       if (changed) {
-      console.log(
-        `Received change notification: changed=${changed}`,
-      );
-    }
+        console.log(
+          `Received change notification: changed=${changed}`,
+        );
+      }
+      if (
+        changeWatchReceivedAt &&
+        (performance.now() - changeWatchReceivedAt < 5000)
+      ) {
+        console.log("Ignoring duplicate change notification");
+        return c.text("OK", 200);
+      }
+      changeWatchReceivedAt = performance.now();
       try {
         await processChangeNotification();
         const origin = new URL(c.req.url).origin;

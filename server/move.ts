@@ -103,7 +103,7 @@ async function getTargetFolder(
 }
 
 export async function doMove(
-  items: DriveItem[],
+  items: { name: string; id: string }[],
   parents: DriveItem[],
 ): Promise<number> {
   if (parents.length !== 3) return 0;
