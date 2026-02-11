@@ -72,17 +72,19 @@ export function createTreeRouter(): Hono {
         console.error("Change notification without channelId");
         return c.text("Bad Request", 400);
       }
-      const storedChannel = await getChangeWatchChannel();
-      if (!storedChannel || storedChannel.id !== channelId) {
-        console.error(
-          `Invalid change channelId: expected ${storedChannel?.id}, got ${channelId}`,
-        );
-        return c.text("Forbidden", 403);
-      }
+      // const storedChannel = await getChangeWatchChannel();
+      // if (!storedChannel || storedChannel.id !== channelId) {
+      //   console.error(
+      //     `Invalid change channelId: expected ${storedChannel?.id}, got ${channelId}`,
+      //   );
+      //   return c.text("Forbidden", 403);
+      // }
 
+      if (changed) {
       console.log(
         `Received change notification: changed=${changed}`,
       );
+    }
       try {
         await processChangeNotification();
         const origin = new URL(c.req.url).origin;

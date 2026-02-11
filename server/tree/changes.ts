@@ -100,6 +100,7 @@ export async function processChangeNotification(): Promise<void> {
 
   while (pageToken) {
     const response = await listChanges(pageToken);
+    console.log("listChanges", response)
     for (const change of response.changes) {
       await collectParentFolders(change, foldersToRefresh);
     }
