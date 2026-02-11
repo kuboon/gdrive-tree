@@ -114,6 +114,7 @@ export async function processChangeNotification(): Promise<void> {
 
   for (const [parentId, items] of map) {
     const parents = await allParents(parentId);
+    console.log(`parents: ${parents.map((p) => p.name).join(" / ")}`);
     await doMove(
       items.map((p) => {
         const file = p.change.file!;
