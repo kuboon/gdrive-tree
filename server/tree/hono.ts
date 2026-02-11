@@ -3,7 +3,6 @@ import { getWatchChannel } from "./repo.ts";
 import type { DriveItem } from "./types.ts";
 import { isFolder } from "../gdrive.ts";
 import { Hono } from "@hono/hono";
-import { enqueue } from "./taskRunner.ts";
 
 /**
  * Tree 関連の API ルートを提供する Hono middleware
@@ -49,7 +48,6 @@ export function createTreeRouter(): Hono {
       );
 
       try {
-        // キャッシュを更新
         await update(folderId);
         return c.text("OK", 200);
       } catch (error) {
@@ -68,10 +66,9 @@ export function createTreeRouter(): Hono {
       }
 
       const reqUrl = new URL(c.req.url);
-      if (reqUrl.protocol === "https:") {
-        const webhookUrl = `${reqUrl.origin}/api/watch/${folderId}`;
-        enqueue(() => ensureWatchChannel(webhookUrl, folderId));
-      }
+      const webHookUrl = `${reqUrl.origin}/api/watch/${folderId}`;
+      await ensureWatchChannel(webHookUrl, folderId);
+
       const response = await getChildren(folderId, refresh);
       return c.json(response);
     })
@@ -94,12 +91,6 @@ export function createTreeRouter(): Hono {
           [
             ...batch.map(async (file) => {
               ret.push(file);
-              // watch channel の確認と作成・更新
-              const url = new URL(c.req.url);
-              if (url.protocol === "https:") {
-                const webhookUrl = `${url.origin}/api/watch/${file.id}`;
-                enqueue(() => ensureWatchChannel(webhookUrl, file.id));
-              }
 
               const subChildren = await getChildren(file.id);
               const folders = subChildren?.filter(isFolder) || [];

@@ -1,6 +1,7 @@
 import type { DriveItem } from "./types.ts";
 import {
   deleteWatchChannel,
+  enqueue,
   getChildren as getCachedChildren,
   getDriveItem,
   getWatchChannel,
@@ -57,43 +58,55 @@ export async function ensureWatchChannel(
   webhookUrl: string,
   folderId: string,
 ): Promise<void> {
+  if (webhookUrl.startsWith("http://")) return;
   const channel = await getWatchChannel(folderId);
-  const now = Date.now();
-
-  // channel がない、または有効期限が近い場合は再作成
-  if (!channel || channel.expiration < now + EXPIRATION_BUFFER) {
-    // 古い channel があれば停止
-    if (channel) {
-      try {
-        await stopWatch(channel);
-      } catch (error) {
-        console.error(`Failed to stop old watch channel: ${error}`);
-      }
-      await deleteWatchChannel(folderId);
-    }
-
-    const newChannel = await createWatch(folderId, webhookUrl);
-    await saveWatchChannel(folderId, newChannel);
-    console.log(
-      `Created watch channel for folder ${folderId}, expires at ${new Date(
-        newChannel.expiration,
-      )}`,
-    );
+  if (channel && channel.expiration < Date.now() - EXPIRATION_BUFFER) {
+    return;
   }
+  if (channel) {
+    try {
+      await stopWatch(channel);
+    } catch (error) {
+      console.error(`Failed to stop old watch channel: ${error}`);
+    }
+    await deleteWatchChannel(folderId);
+  }
+  await enqueue({
+    type: "createAndCacheWatchChannel",
+    webHookUrl: webhookUrl,
+    folderId,
+  });
+}
+export async function createAndCacheWatchChannel(
+  folderId: string,
+  webHookUrl: string,
+): Promise<void> {
+  const channel = await createWatch(folderId, webHookUrl);
+  await saveWatchChannel(folderId, channel);
+  const expiresAt = new Date(channel.expiration).toISOString();
+  console.log(
+    `Created watch channel for ${folderId} ${channel.resourceId}, expires at ${expiresAt}`,
+  );
 }
 
 /**
  * watch 通知を受け取った時に呼ばれるメソッド
- * キャッシュを無効化し、最新のファイルリストを取得して保存
  */
 export async function update(folderId: string): Promise<void> {
   try {
     // 最新のファイルリストを取得
     const files = await driveFiles(folderId);
+    const counts = await processMove(folderId, files);
 
     // キャッシュを更新
-    await saveChildren(folderId, files);
-    await processMove(folderId, files);
+    if (counts > 0) {
+      if (files.length === counts) {
+        await saveChildren(folderId, []);
+      } else {
+        const files = await driveFiles(folderId);
+        await saveChildren(folderId, files);
+      }
+    }
 
     console.log(`Updated cache for folder ${folderId}, ${files.length} files`);
   } catch (error) {
@@ -116,8 +129,8 @@ async function allParents(fileId: string): Promise<DriveItem[]> {
 async function processMove(
   folderId: string,
   items: DriveItem[],
-): Promise<void> {
-  if (items.length === 0) return;
+): Promise<number> {
+  if (items.length === 0) return 0;
   const parents = await allParents(folderId);
   return doMove(items, parents);
 }

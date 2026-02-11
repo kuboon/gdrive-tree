@@ -1,8 +1,12 @@
 import type { Context } from "@hono/hono";
 import { isFolder, moveFile } from "./gdrive.ts";
-import { getChildren, getOrCreateFolder } from "./tree/mod.ts";
+import {
+  ensureWatchChannel,
+  getChildren,
+  getOrCreateFolder,
+} from "./tree/mod.ts";
 import type { DriveItem } from "./tree/types.ts";
-import { runQueue } from "./tree/taskRunner.ts";
+import { runQueue } from "./tree/repo.ts";
 
 // フォルダIDを指定
 export const UP_FOLDER_ID = "1QAArkDWkzjVBJtw6Uosq5Iki3NdgMZLh";
@@ -20,7 +24,9 @@ export interface MoveAllResult {
  * FOLDER_A 内の各サブフォルダにあるファイルを、
  * FOLDER_B 内の同名フォルダへ移動する
  */
-export async function moveAllFiles(): Promise<MoveAllResult> {
+export async function moveAllFiles(
+  { origin }: { origin: string },
+): Promise<MoveAllResult> {
   const logs: string[] = [];
   function addLog(message: string) {
     console.log(message);
@@ -36,12 +42,18 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
 
     // L1フォルダを並行処理
     await Promise.all(foldersL1.map(async (folderL1) => {
+      const webHookUrl = `${origin}/api/watch/${folderL1.id}`;
+      await ensureWatchChannel(webHookUrl, folderL1.id);
       // 階層2のフォルダを取得
       const foldersL2 = (await getChildren(folderL1.id)).filter(isFolder);
       await Promise.all(foldersL2.map(async (folderL2) => {
+        const webHookUrl = `${origin}/api/watch/${folderL2.id}`;
+        await ensureWatchChannel(webHookUrl, folderL2.id);
         // 階層3のフォルダを取得
         const foldersL3 = (await getChildren(folderL2.id)).filter(isFolder);
         await Promise.all(foldersL3.map(async (folderL3) => {
+          const webHookUrl = `${origin}/api/watch/${folderL3.id}`;
+          await ensureWatchChannel(webHookUrl, folderL3.id);
           foldersCount++;
 
           // ファイル取得
@@ -80,17 +92,12 @@ export async function moveAllFiles(): Promise<MoveAllResult> {
   }
 }
 
-const cache = new Map<[string, string], DriveItem>();
 async function getTargetFolder(
   parentId: string,
   folderNames: string[],
 ): Promise<DriveItem> {
   const folderName = folderNames[0];
-  let target = cache.get([parentId, folderName]);
-  if (!target) {
-    target = await getOrCreateFolder(parentId, folderName);
-    cache.set([parentId, folderName], target);
-  }
+  const target = await getOrCreateFolder(parentId, folderName);
   if (folderNames.length == 1) return target;
   return getTargetFolder(target.id, folderNames.slice(1));
 }
@@ -98,9 +105,9 @@ async function getTargetFolder(
 export async function doMove(
   items: DriveItem[],
   parents: DriveItem[],
-): Promise<void> {
-  if (parents.length !== 3) return;
-  if (parents[0].parents[0] !== UP_FOLDER_ID) return;
+): Promise<number> {
+  if (parents.length !== 3) return 0;
+  if (parents[0].parents[0] !== UP_FOLDER_ID) return 0;
   const folderNames = parents.map((f) => f.name);
   const prefix = folderNames.join("-") + "-";
   const parentId = parents[parents.length - 1].id;
@@ -129,15 +136,19 @@ export async function doMove(
       getChildren(target.id, true),
     ]);
   }
+  return items.length;
 }
 
 /**
  * Hono ハンドラ
  */
 export async function moveAllHandler(c: Context) {
+  const origin = new URL(c.req.url).origin;
   try {
-    cache.clear();
-    const [result, _] = await Promise.all([moveAllFiles(), runQueue(10000)]);
+    const [result, _] = await Promise.all([
+      moveAllFiles({ origin }),
+      runQueue(10000),
+    ]);
 
     if (result.status === "error") {
       return c.json({
@@ -159,7 +170,8 @@ export async function moveAllHandler(c: Context) {
 
 // 単体実行時のメイン処理
 if (import.meta.main) {
-  const result = await moveAllFiles();
+  const origin = "https://gdrive-tree.kuboon-tokyo.deno.net";
+  const result = await moveAllFiles({ origin });
   console.log("\n=== Results ===");
   console.log(`Status: ${result.status}`);
   console.log(`Folders processed: ${result.foldersCount}`);
@@ -168,11 +180,13 @@ if (import.meta.main) {
   if (result.error) {
     console.error(`Error: ${result.error}`);
   }
-  Deno.cron("Log a message", "* * * * *", async () => {
+  Deno.cron("moveAllFiles", "* * * * *", async () => {
     console.log(new Date(), `\nStarting file migration...`);
 
-    const result = await moveAllFiles();
-
+    const [result, _] = await Promise.all([
+      moveAllFiles({ origin }),
+      runQueue(550000),
+    ]);
     console.log(new Date(), "\n=== Results ===");
     console.log(`Status: ${result.status}`);
     console.log(`Folders processed: ${result.foldersCount}`);

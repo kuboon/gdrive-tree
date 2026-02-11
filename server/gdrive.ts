@@ -246,7 +246,7 @@ export async function createWatch(
   );
   const headers = await getAuthHeaders();
 
-  const channelId = crypto.randomUUID();
+  const channelId = folderId;
   const response = await fetch(url, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
@@ -254,7 +254,8 @@ export async function createWatch(
       id: channelId,
       type: "web_hook",
       address: webhookUrl,
-      expiration: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7日後
+      // default は 1時間、最長は1日？
+      expiration: Date.now() + 24 * 60 * 60 * 1000, // 1日後
     }),
   });
 
