@@ -180,6 +180,7 @@ export async function runQueue(limitMs: number = 5000): Promise<void> {
         }
         return current;
       });
+      console.log(`Loaded tasks, queue length: ${tasks.length}`);
       while (tasks.length > 0) {
         const task = tasks.shift()!;
         try {
@@ -197,11 +198,11 @@ export async function runQueue(limitMs: number = 5000): Promise<void> {
               `Error running task ${JSON.stringify(task)}: ${error.message}`,
             );
           }
-        }
-        if (!inLimit()) {
-          console.log(`Time limit reached, re-enqueue remaining tasks`);
-          await enqueue(...tasks);
-          break;
+          if (!inLimit()) {
+            console.log(`Time limit reached, re-enqueue remaining tasks`);
+            await enqueue(...tasks);
+            break;
+          }
         }
       }
     }
