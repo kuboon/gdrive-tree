@@ -189,7 +189,7 @@ export async function saveChildren(
 //   await repos.driveItemByParent(folderId).delete();
 // }
 
-export function getDriveItem(
+export function getRepoDriveItem(
   itemId: string,
 ): Promise<DriveItem | null> {
   return repos.driveItem(itemId).get();

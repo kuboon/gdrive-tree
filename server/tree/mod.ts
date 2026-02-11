@@ -3,7 +3,7 @@ import {
   deleteWatchChannel,
   enqueue,
   getChildren as getCachedChildren,
-  getDriveItem,
+  getRepoDriveItem,
   getWatchChannel,
   saveChildren,
   saveWatchChannel,
@@ -120,7 +120,7 @@ export async function update(folderId: string): Promise<void> {
 }
 
 export async function allParents(fileId: string): Promise<DriveItem[]> {
-  const item = await getDriveItem(fileId);
+  const item = await getRepoDriveItem(fileId);
   if (item && item.parents && item.parents.length > 0) {
     const parent = item.parents[0];
     const grandparents = await allParents(parent);

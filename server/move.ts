@@ -176,7 +176,8 @@ export async function moveAllHandler(c: Context) {
 
 // 単体実行時のメイン処理
 if (import.meta.main) {
-  const origin = "https://gdrive-tree.kuboon-tokyo.deno.net";
+  // const origin = "https://gdrive-tree.kuboon-tokyo.deno.net";
+  const origin = "http://localhost:8787";
   const result = await moveAllFiles({ origin });
   console.log("\n=== Results ===");
   console.log(`Status: ${result.status}`);

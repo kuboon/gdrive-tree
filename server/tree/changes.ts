@@ -3,13 +3,14 @@ import {
   deleteChangeWatchChannel,
   getChangeStartPageToken,
   getChangeWatchChannel,
-  getDriveItem,
+  getRepoDriveItem,
   saveChangeStartPageToken,
   saveChangeWatchChannel,
 } from "./repo.ts";
 import {
   type Change,
   getChangesStartPageToken,
+  getDriveItem,
   listChanges,
   stopWatch,
   watchChanges,
@@ -95,14 +96,11 @@ async function collectRecentChanges(): Promise<Change[]> {
 
 export async function processChangeNotification(): Promise<void> {
   const changes = await collectRecentChanges();
-  console.log(
-    `Changes received: ${changes.map((c) => c.file?.name).join(", ")}`,
-  );
 
   const pairs: { change: Change; parentId: string }[] = [];
   for (const change of changes) {
     if (!change.fileId) continue;
-    const driveItem = (await getDriveItem(change.fileId)) ||
+    const driveItem = (await getRepoDriveItem(change.fileId)) ||
       (await getDriveItem(change.fileId));
     if (!driveItem || !driveItem.parents || driveItem.parents.length === 0) {
       continue;
@@ -114,7 +112,6 @@ export async function processChangeNotification(): Promise<void> {
 
   for (const [parentId, items] of map) {
     const parents = await allParents(parentId);
-    console.log(`parents: ${parents.map((p) => p.name).join(" / ")}`);
     await doMove(
       items.map((p) => {
         const file = p.change.file!;
