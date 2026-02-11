@@ -30,19 +30,19 @@ export function createTreeRouter(): Hono {
         return c.text("Bad Request", 400);
       }
 
-      // channelId を検証：保存されている watch channel と一致するか確認
-      try {
-        const savedChannel = await getWatchChannel(folderId);
-        if (!savedChannel || savedChannel.id !== channelId) {
-          console.error(
-            `Invalid channelId: expected ${savedChannel?.id}, got ${channelId}`,
-          );
-          return c.text("Forbidden", 403);
-        }
-      } catch (error) {
-        console.error(`Failed to verify watch channel: ${error}`);
-        return c.text("Forbidden", 403);
-      }
+      // // channelId を検証：保存されている watch channel と一致するか確認
+      // try {
+      //   const savedChannel = await getWatchChannel(folderId);
+      //   if (!savedChannel || savedChannel.id !== channelId) {
+      //     console.error(
+      //       `Invalid channelId: expected ${savedChannel?.id}, got ${channelId}`,
+      //     );
+      //     return c.text("Forbidden", 403);
+      //   }
+      // } catch (error) {
+      //   console.error(`Failed to verify watch channel: ${error}`);
+      //   return c.text("Forbidden", 403);
+      // }
       console.log(
         `Received watch notification for folder ${folderId}: state=${resourceState}, changed=${changed}`,
       );
