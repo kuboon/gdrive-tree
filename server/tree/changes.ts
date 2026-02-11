@@ -95,6 +95,9 @@ async function collectRecentChanges(): Promise<Change[]> {
 
 export async function processChangeNotification(): Promise<void> {
   const changes = await collectRecentChanges();
+  console.log(
+    `Changes received: ${changes.map((c) => c.file?.name).join(", ")}`,
+  );
 
   const pairs: { change: Change; parentId: string }[] = [];
   for (const change of changes) {

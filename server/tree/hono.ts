@@ -89,7 +89,6 @@ export function createTreeRouter(): Hono {
         changeWatchReceivedAt &&
         (performance.now() - changeWatchReceivedAt < 5000)
       ) {
-        console.log("Ignoring duplicate change notification");
         return c.text("OK", 200);
       }
       changeWatchReceivedAt = performance.now();
