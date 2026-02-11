@@ -64,6 +64,7 @@ export function createTreeRouter(): Hono {
     .post("/changes/watch", async (c) => {
       const resourceState = c.req.header("X-Goog-Resource-State");
       const channelId = c.req.header("X-Goog-Channel-ID");
+      const changed = c.req.header("X-Goog-Changed");
       if (resourceState === "sync") {
         return c.text("OK", 200);
       }
@@ -80,7 +81,7 @@ export function createTreeRouter(): Hono {
       }
 
       console.log(
-        `Received change notification: state=${resourceState}`,
+        `Received change notification: changed=${changed}`,
       );
       try {
         await processChangeNotification();

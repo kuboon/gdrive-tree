@@ -78,10 +78,7 @@ async function collectParentFolders(
 }
 
 async function refreshFolders(folders: Set<string>): Promise<void> {
-  if (folders.size === 0) {
-    console.log("Change notification: nothing to refresh");
-    return;
-  }
+  if (folders.size === 0) { return; }
   await Promise.all([...folders].map(async (folderId) => {
     try {
       await getChildren(folderId, true);
