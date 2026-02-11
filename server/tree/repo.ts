@@ -180,6 +180,10 @@ export async function runQueue(limitMs: number = 5000): Promise<void> {
         }
         return current;
       });
+      if (tasks.length === 0) {
+        await new Promise((r) => setTimeout(r, 1000));
+        break;
+      }
       console.log(`Loaded tasks, queue length: ${tasks.length}`);
       while (tasks.length > 0) {
         const task = tasks.shift()!;
