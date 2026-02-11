@@ -3,6 +3,7 @@ import {
   deleteChangeWatchChannel,
   getChangeStartPageToken,
   getChangeWatchChannel,
+  getChildren,
   getRepoDriveItem,
   saveChangeStartPageToken,
   saveChangeWatchChannel,
@@ -119,5 +120,6 @@ export async function processChangeNotification(): Promise<void> {
       }),
       parents,
     );
+    await getChildren(parentId); // キャッシュ更新
   }
 }
