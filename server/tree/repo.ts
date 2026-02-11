@@ -94,7 +94,7 @@ class KvListEntry<T> {
 const repos = {
   watchChannel: (folderId: string) =>
     new KvEntry<WatchChannel>(["watch_channel", folderId], {
-      expireIn: 7 * 24 * 60 * 60 * 1000, // 7日間
+      expireIn: 24 * 60 * 60 * 1000, // 1日間
     }),
   driveItem: (itemId: string) => new KvEntry<DriveItem>(["drive_item", itemId]),
   driveItemByParent: (parentId: string) =>
@@ -111,9 +111,10 @@ export function getWatchChannel(
 export async function saveWatchChannel(
   folderId: string,
   channel: WatchChannel,
+  expireIn: number,
 ): Promise<void> {
   const repo = repos.watchChannel(folderId);
-  await repo.set(channel);
+  await repo.set(channel, { expireIn });
 }
 
 export async function deleteWatchChannel(folderId: string): Promise<void> {

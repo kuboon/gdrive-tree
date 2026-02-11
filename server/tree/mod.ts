@@ -82,7 +82,11 @@ export async function createAndCacheWatchChannel(
   webHookUrl: string,
 ): Promise<void> {
   const channel = await createWatch(folderId, webHookUrl);
-  await saveWatchChannel(folderId, channel);
+  await saveWatchChannel(
+    folderId,
+    channel,
+    channel.expiration - Date.now() - EXPIRATION_BUFFER,
+  );
   const expiresAt = new Date(channel.expiration).toISOString();
   console.log(
     `Created watch channel for ${folderId} ${channel.resourceId}, expires at ${expiresAt}`,
