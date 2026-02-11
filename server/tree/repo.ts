@@ -6,7 +6,6 @@ import { monotonicUlid } from "@std/ulid";
 const kv = await Deno.openKv();
 const expireIn = 40 * 60 * 1000; // 40分
 const memoryCache = new Map<Deno.KvKey, { data: unknown; expireAt: number }>();
-console.log("memoryCache initialized");
 
 class KvEntry<T> {
   constructor(

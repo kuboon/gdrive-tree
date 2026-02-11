@@ -149,7 +149,12 @@ export async function moveAllHandler(c: Context) {
       moveAllFiles({ origin }),
       runQueue(10000),
     ]);
-    console.log("moveAllHandler result:", result);
+    if (result.processedFiles > 0) {
+      console.log(
+        `moveAllHandler: Processed ${result.processedFiles} files in ${result.foldersCount} folders`,
+        result.logs,
+      );
+    }
 
     if (result.status === "error") {
       return c.json({
