@@ -95,6 +95,14 @@ const repos = {
     new KvEntry<WatchChannel>(["watch_channel", folderId], {
       expireIn: 24 * 60 * 60 * 1000, // 1日間
     }),
+  changeWatchChannel: () =>
+    new KvEntry<WatchChannel>(["watch_channel", "changes"], {
+      expireIn: 24 * 60 * 60 * 1000,
+    }),
+  changeStartPageToken: () =>
+    new KvEntry<string>(["change_start_page_token"], {
+      expireIn: 365 * 24 * 60 * 60 * 1000,
+    }),
   driveItem: (itemId: string) => new KvEntry<DriveItem>(["drive_item", itemId]),
   driveItemByParent: (parentId: string) =>
     new KvEntry<string[]>(["drive_item_by_parent", parentId]),
@@ -118,6 +126,29 @@ export async function saveWatchChannel(
 
 export async function deleteWatchChannel(folderId: string): Promise<void> {
   await repos.watchChannel(folderId).delete();
+}
+
+export function getChangeWatchChannel(): Promise<WatchChannel | null> {
+  return repos.changeWatchChannel().get();
+}
+
+export async function saveChangeWatchChannel(
+  channel: WatchChannel,
+  expireIn: number,
+): Promise<void> {
+  await repos.changeWatchChannel().set(channel, { expireIn });
+}
+
+export async function deleteChangeWatchChannel(): Promise<void> {
+  await repos.changeWatchChannel().delete();
+}
+
+export function getChangeStartPageToken(): Promise<string | null> {
+  return repos.changeStartPageToken().get();
+}
+
+export async function saveChangeStartPageToken(token: string): Promise<void> {
+  await repos.changeStartPageToken().set(token);
 }
 
 /**

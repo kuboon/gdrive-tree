@@ -8,6 +8,22 @@ export function isFolder(file: { mimeType: string }): boolean {
   return file.mimeType === "application/vnd.google-apps.folder";
 }
 
+export interface Change {
+  kind?: string;
+  removed?: boolean;
+  file?: DriveItem;
+  fileId?: string;
+  time?: string;
+  driveId?: string;
+  changeType?: string;
+}
+
+export interface ListChangesResponse {
+  changes: Change[];
+  nextPageToken?: string;
+  newStartPageToken?: string;
+}
+
 /**
  * 認証ヘッダーを取得
  * OAuth2 トークンを優先し、なければ API Key を使用
@@ -324,6 +340,111 @@ export async function stopWatch(channel: WatchChannel): Promise<void> {
     // 404 は channel が既に存在しない場合なので無視
     throw new Error(`Stop watch failed: ${response.statusText}`);
   }
+}
+
+export async function getChangesStartPageToken(): Promise<string> {
+  const params = new URLSearchParams();
+  params.append("supportsAllDrives", "true");
+
+  const url = await buildApiUrl(
+    "https://www.googleapis.com/drive/v3/changes/startPageToken",
+    params,
+  );
+  const headers = await getAuthHeaders();
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `getStartPageToken failed: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
+  const json = await response.json() as { startPageToken: string };
+  return json.startPageToken;
+}
+
+export async function watchChanges(
+  webhookUrl: string,
+  pageToken: string,
+  channelId: string,
+): Promise<WatchChannel> {
+  const params = new URLSearchParams();
+  params.append("supportsAllDrives", "true");
+  params.append("includeItemsFromAllDrives", "true");
+  params.append("pageToken", pageToken);
+
+  const url = await buildApiUrl(
+    "https://www.googleapis.com/drive/v3/changes/watch",
+    params,
+  );
+  const headers = await getAuthHeaders();
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: channelId,
+      type: "web_hook",
+      address: webhookUrl,
+      expiration: Date.now() + 24 * 60 * 60 * 1000,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorJson = await response.json();
+    if (
+      response.status === 403 && errorJson.error?.errors?.[0]?.reason ===
+        "subscriptionRateLimitExceeded"
+    ) {
+      throw new RateLimitError(
+        "Rate limit exceeded for creating change subscriptions.",
+      );
+    }
+    throw new Error(
+      `Watch changes failed: ${response.status} ${response.statusText} - ${
+        JSON.stringify(errorJson)
+      }`,
+    );
+  }
+
+  const result = await response.json() as {
+    id: string;
+    resourceId: string;
+    expiration: string;
+  };
+
+  return {
+    id: result.id,
+    resourceId: result.resourceId,
+    expiration: parseInt(result.expiration),
+  };
+}
+
+export async function listChanges(
+  pageToken: string,
+): Promise<ListChangesResponse> {
+  const params = new URLSearchParams();
+  params.append("supportsAllDrives", "true");
+  params.append("includeItemsFromAllDrives", "true");
+  params.append("spaces", "drive");
+  params.append("includeRemoved", "true");
+  params.append("pageSize", "1000");
+  params.append("pageToken", pageToken);
+
+  const url = await buildApiUrl(
+    "https://www.googleapis.com/drive/v3/changes",
+    params,
+  );
+  const headers = await getAuthHeaders();
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `listChanges failed: ${response.status} ${response.statusText} - ${errorText}`,
+    );
+  }
+  return await response.json() as ListChangesResponse;
 }
 
 /**

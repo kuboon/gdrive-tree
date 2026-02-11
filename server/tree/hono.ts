@@ -1,4 +1,9 @@
 import { ensureWatchChannel, getChildren, update } from "./mod.ts";
+import {
+  ensureChangesWatchChannel,
+  processChangeNotification,
+} from "./changes.ts";
+import { getChangeWatchChannel } from "./repo.ts";
 import type { DriveItem } from "./types.ts";
 import { isFolder } from "../gdrive.ts";
 import { Hono } from "@hono/hono";
@@ -56,6 +61,37 @@ export function createTreeRouter(): Hono {
         return c.text("Internal Server Error", 500);
       }
     })
+    .post("/changes/watch", async (c) => {
+      const resourceState = c.req.header("X-Goog-Resource-State");
+      const channelId = c.req.header("X-Goog-Channel-ID");
+      if (resourceState === "sync") {
+        return c.text("OK", 200);
+      }
+      if (!channelId) {
+        console.error("Change notification without channelId");
+        return c.text("Bad Request", 400);
+      }
+      const storedChannel = await getChangeWatchChannel();
+      if (!storedChannel || storedChannel.id !== channelId) {
+        console.error(
+          `Invalid change channelId: expected ${storedChannel?.id}, got ${channelId}`,
+        );
+        return c.text("Forbidden", 403);
+      }
+
+      console.log(
+        `Received change notification: state=${resourceState}`,
+      );
+      try {
+        await processChangeNotification();
+        const origin = new URL(c.req.url).origin;
+        await ensureChangesWatchChannel(`${origin}/api/changes/watch`);
+        return c.text("OK", 200);
+      } catch (error) {
+        console.error(`Change notification error: ${error}`);
+        return c.text("Internal Server Error", 500);
+      }
+    })
     .get("/folders/:id", async (c) => {
       // フォルダの子要素を取得
       const folderId = c.req.param("id");
@@ -68,7 +104,16 @@ export function createTreeRouter(): Hono {
 
       const reqUrl = new URL(c.req.url);
       const webHookUrl = `${reqUrl.origin}/api/watch/${folderId}`;
-      await ensureWatchChannel(webHookUrl, folderId);
+      const changeWebHookUrl = `${reqUrl.origin}/api/changes/watch`;
+      try {
+        await ensureWatchChannel(webHookUrl, folderId);
+        await ensureChangesWatchChannel(changeWebHookUrl);
+      } catch (error) {
+        console.error(
+          `Failed to ensure watch channels for ${folderId}: ${error}`,
+        );
+        return c.text("Internal Server Error", 500);
+      }
 
       const response = await getChildren(folderId, refresh);
       return c.json(response);
