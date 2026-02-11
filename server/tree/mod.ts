@@ -111,7 +111,6 @@ export async function update(folderId: string): Promise<void> {
         await saveChildren(folderId, files);
       }
     }
-
     console.log(`Updated cache for folder ${folderId}, ${files.length} files`);
   } catch (error) {
     console.error(`Failed to update cache for folder ${folderId}: ${error}`);

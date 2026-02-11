@@ -1,5 +1,4 @@
 import { ensureWatchChannel, getChildren, update } from "./mod.ts";
-import { getWatchChannel } from "./repo.ts";
 import type { DriveItem } from "./types.ts";
 import { isFolder } from "../gdrive.ts";
 import { Hono } from "@hono/hono";
@@ -49,6 +48,8 @@ export function createTreeRouter(): Hono {
 
       try {
         await update(folderId);
+        const origin = new URL(c.req.url).origin;
+        await ensureWatchChannel(`${origin}/api/watch/${folderId}`, folderId);
         return c.text("OK", 200);
       } catch (error) {
         console.error(`Watch notification error: ${error}`);
