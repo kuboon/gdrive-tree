@@ -199,6 +199,7 @@ export async function runQueue(limitMs: number = 5000): Promise<void> {
           }
         }
         if (!inLimit()) {
+          console.log(`Time limit reached, re-enqueue remaining tasks`);
           await enqueue(...tasks);
           break;
         }
